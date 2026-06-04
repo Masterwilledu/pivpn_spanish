@@ -1,6 +1,6 @@
 #!/bin/bash
 
-### Constants
+### Constantes
 
 CHECK_PKG_INSTALLED='dpkg-query -s'
 scriptdir="/opt/pivpn"
@@ -10,7 +10,7 @@ if grep -qsEe "^NAME\=['\"]?Alpine[a-zA-Z ]*['\"]?$" /etc/os-release; then
   CHECK_PKG_INSTALLED='apk --no-cache info -e'
 fi
 
-### Functions
+### Funciones
 err() {
   echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $*" >&2
 }
@@ -28,14 +28,14 @@ listConnected() {
 }
 
 debug() {
-  echo "::: Generating Debug Output"
+  echo "::: Generando salida de depuración"
 
   ${SUDO} "${scriptdir}/${vpn}/pivpnDEBUG.sh" | tee /tmp/debug.log
   e="${?}"
 
   echo "::: "
-  echo "::: Debug output completed above."
-  echo "::: Copy saved to /tmp/debug.log"
+  echo "::: Salida de depuración completada arriba."
+  echo "::: Copia guardada en /tmp/debug.log"
   echo "::: "
   exit "${e}"
 }
@@ -86,34 +86,34 @@ backup() {
 }
 
 showHelp() {
-  echo "::: Control all PiVPN specific functions!"
+  echo "::: ¡Controla todas las funciones específicas de PiVPN!"
   echo ":::"
-  echo "::: Usage: pivpn <command> [option]"
+  echo "::: Uso: pivpn <comando> [opción]"
   echo ":::"
-  echo "::: Commands:"
-  echo ":::    -a, add              Create a client conf profile"
-  echo ":::    -c, clients          List any connected clients to the server"
-  echo ":::    -d, debug            Start a debugging session if having trouble"
-  echo ":::    -l, list             List all clients"
-  echo -n ":::   -qr, qrcode           Show the qrcode of a client for use "
-  echo "with the mobile app"
-  echo ":::    -r, remove           Remove a client"
-  echo ":::  -off, off              Disable a client"
-  echo ":::   -on, on               Enable a client"
-  echo ":::    -h, help             Show this help dialog"
-  echo ":::    -u, uninstall        Uninstall pivpn from your system!"
-  echo ":::   -up, update           Updates PiVPN Scripts"
-  echo ":::   -bk, backup           Backup VPN configs and user profiles"
+  echo "::: Comandos:"
+  echo ":::    -a, add              Crear un perfil de configuración de cliente"
+  echo ":::    -c, clients          Listar cualquier cliente conectado al servidor"
+  echo ":::    -d, debug            Iniciar una sesión de depuración si hay problemas"
+  echo ":::    -l, list             Listar todos los clientes"
+  echo -n ":::   -qr, qrcode           Mostrar el código QR de un cliente para su uso "
+  echo "con la aplicación móvil"
+  echo ":::    -r, remove           Eliminar un cliente"
+  echo ":::  -off, off              Deshabilitar un cliente"
+  echo ":::   -on, on               Habilitar un cliente"
+  echo ":::    -h, help             Mostrar este diálogo de ayuda"
+  echo ":::    -u, uninstall        ¡Desinstalar pivpn de tu sistema!"
+  echo ":::   -up, update           Actualizar scripts de PiVPN"
+  echo ":::   -bk, backup           Hacer copia de seguridad de las configuraciones VPN y perfiles de usuario"
   exit 0
 }
 
 ### Script
-# Must be root to use this tool
+# Debe ser root para usar esta herramienta
 if [[ "${EUID}" -ne 0 ]]; then
   if ${CHECK_PKG_INSTALLED} sudo &> /dev/null; then
     export SUDO="sudo"
   else
-    err "::: Please install sudo or run this as root."
+    err "::: Por favor, instala sudo o ejecuta esto como root."
     exit 1
   fi
 fi
@@ -122,7 +122,7 @@ if [[ "$#" == 0 ]]; then
   showHelp
 fi
 
-# Handle redirecting to specific functions based on arguments
+# Manejar la redirección a funciones específicas según los argumentos
 case "${1}" in
   "-a" | "add")
     makeConf "$@"
