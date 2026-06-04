@@ -40,14 +40,14 @@ PiVPN también debería funcionar con la mayoría de las distribuciones basadas 
 curl https://raw.githubusercontent.com/Masterwilledu/pivpn/master/auto_install/install.sh | bash
 ```
 
-### Metodo 3 (clone repo)
+### Metodo 2 (clone repo)
 
 ```Shell
 git clone https://github.com/Masterwilledu/pivpn.git
 bash pivpn/auto_install/install.sh
 ```
 
-### Para instalar desde una URL y rama Git personalizadas (para DEV)
+### Para instalar desde una URL y Rama Git personalizadas (para Desarrolladores)
 
 Esto está pensado para usarse al probar cambios durante el desarrollo y **NO** para instalaciones estándar.
 Sin esta opción, el script siempre seleccionará la rama principal (master).
