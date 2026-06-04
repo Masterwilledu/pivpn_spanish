@@ -11,13 +11,11 @@
 [![Website shields.io](https://img.shields.io/website-up-down-green-red/https/pivpn.io.svg)](https://pivpn.io/)
 [![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://github.com/pivpn/pivpn/graphs/commit-activity)
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/452112df3c2c435d93aacc113f546eae)](https://app.codacy.com/gh/pivpn/pivpn?utm_source=github.com&utm_medium=referral&utm_content=pivpn/pivpn&utm_campaign=Badge_Grade_Settings)
-[![Build Status](https://travis-ci.com/pivpn/pivpn.svg?branch=master)](https://travis-ci.com/pivpn/pivpn)
-[![Build Status](https://travis-ci.com/pivpn/pivpn.svg?branch=test)](https://travis-ci.com/pivpn/pivpn)
 [![made-with-bash](https://img.shields.io/badge/Made%20with-Bash-1f425f.svg)](https://www.gnu.org/software/bash/)
 [![Generic badge](https://img.shields.io/badge/status-page-blue.svg)](https://stats.uptimerobot.com/8X64yTjrJO)
 [![semantic-release: angular](https://img.shields.io/badge/semantic--release-angular-e10079?logo=semantic-release)](https://github.com/semantic-release/semantic-release)
 
-PiVPN es un conjunto de scripts de consola desarrollados para convertir fácilmente su Raspberry Pi (TM) en un servidor VPN utilizando uno o ambos de los protocolos gratuitos de código abierto:
+PiVPN es un conjunto de scripts de consola desarrollados para convertir fácilmente su Raspberry Pi (TM) en un servidor VPN utilizando uno o ambos de los siguientes protocolos VPN gratuitos de código abierto:
 * [WireGuard](https://www.wireguard.com/)
 * [OpenVPN](https://openvpn.net)
 
@@ -40,7 +38,7 @@ PiVPN también debería funcionar con la mayoría de las distribuciones basadas 
 curl https://raw.githubusercontent.com/Masterwilledu/pivpn/master/auto_install/install.sh | bash
 ```
 
-### Metodo 2 (clone repo)
+### Metodo 2 (Clonación de repositorio)
 
 ```Shell
 git clone https://github.com/Masterwilledu/pivpn.git
@@ -131,7 +129,7 @@ PiVPN no acepta donaciones, pero si desea mostrar su agradecimiento, puede contr
 
 * Consulte los [problemas](https://github.com/pivpn/pivpn/issues) y las [discusiones](https://github.com/pivpn/pivpn/discussions). Quizás pueda ayudar en algo.
 
-* ¡La [Documentación](https://github.com/pivpn/docs)! ¡La documentación nunca es suficiente! Siempre falta algo, hay errores tipográficos o se puede mejorar el inglés.
+* ¡[Documentación](https://github.com/pivpn/docs)! ¡La documentación nunca es suficiente! Siempre falta algo, hay errores tipográficos o se puede mejorar el inglés.
 
 Nuestro sitio web (https://pivpn.io) también es de código abierto. Siéntase libre de sugerir cambios o mejoras aquí (https://github.com/pivpn/pivpn.io).
 ¡Prueba PiVPN! ¡Ejecuta PiVPN de diferentes maneras, en diferentes sistemas y con diferentes configuraciones! ¡Avísanos si encuentras algún problema!
