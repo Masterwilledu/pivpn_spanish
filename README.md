@@ -37,110 +37,110 @@ PiVPN también debería funcionar con la mayoría de las distribuciones basadas 
 ### Metodo 1 (Estandar)
 
 ```Shell
-curl https://raw.githubusercontent.com/pivpn/pivpn/master/auto_install/install.sh | bash
+curl https://raw.githubusercontent.com/Masterwilledu/pivpn/master/auto_install/install.sh | bash
 ```
 
 ### Metodo 3 (clone repo)
 
 ```Shell
-git clone https://github.com/pivpn/pivpn.git
+git clone https://github.com/Masterwilledu/pivpn.git
 bash pivpn/auto_install/install.sh
 ```
 
-### To install from Test/Development branch
+### Para instalar desde una URL y rama Git personalizadas (para DEV)
+
+Esto está pensado para usarse al probar cambios durante el desarrollo y **NO** para instalaciones estándar.
+Sin esta opción, el script siempre seleccionará la rama principal (master).
+
+- El repositorio Git puede ser pivpn o cualquier otro repositorio Git (por ejemplo, una bifurcación).
+- Se puede especificar la rama Git según sea necesario.
 
 ```shell
-curl -L https://test.pivpn.io | TESTING= bash
-```
-
-### To install from custom git url and branch (for DEV)
-
-This is inteded to be used when testing changes during
-development and **not** for standard installations.
-Without this the script will always checkout the master branch.
-
-- Git repo can be pivpn or any other git repo (e.g. a fork).
-- Git branch can be specified as required
-
-```shell
-# Syntax
+# Sintaxis
 git clone < customgitrepourl >
 bash pivpn/auto_install/install.sh --giturl < customgitrepourl > --gitbranch < customgitbranch >
 
-# Example
+# Ejemplo
 git clone https://github.com/userthatforked/pivpn.git
 bash pivpn/auto_install/install.sh --giturl https://github.com/userthatforked/pivpn.git --gitbranch myfeaturebranch
 ```
 
-The unattended setup config also supports a custom giturl and branch.
+La configuración de instalación desatendida también admite una rama y un GitHub personalizados.
 
 ```shell
 pivpnGitUrl="https://github.com/userthatforked/pivpn.git"
 pivpnGitBranch="myfeaturebranch"
 ```
 ----
-## Feedback & Support
+## Comentarios y Soporte
 
-PiVPN is purely community-driven and its our objective for PiVPN to work for as many people as possible. We welcome any feedback on your experience.
-Please be respectful and be aware PiVPN is maintained with volunteers free time!
+PiVPN es un proyecto impulsado exclusivamente por la comunidad y nuestro objetivo es que funcione para la mayor cantidad de personas posible. Agradecemos cualquier comentario sobre tu experiencia.
 
-### General Guidelines
+Por favor, sé respetuoso y ten en cuenta que PiVPN se mantiene gracias al tiempo libre de voluntarios.
 
-* This project adheres to the Contributor Covenant [code of conduct](CODE_OF_CONDUCT.md). By participating, you are expected to uphold this code. Please report unacceptable behavior to any project maintainer.
-* You can find our documentation at https://docs.pivpn.io
-* Please read the pinned posts on [Github Discussions](https://github.com/pivpn/pivpn/discussions)
-* Please search for similar [issues](https://github.com/pivpn/pivpn/issues?q=), you can search and apply filters that better match the problems you are facing. 
-* Plase search for similar [Discussions](https://github.com/pivpn/pivpn/discussions)
-* If you have not found the answer feel free to open an [issue](https://github.com/pivpn/pivpn/issues/new/choose) and we will do our best to help out
-  * Please help us helping you and fill the template adequately providing the requested data **Even if it doesn't feel relevant to you**
-* PiVPN team may close any Discussion/Issue without any warning if they don't follow the Guidelines
+### Directrices Generales
 
-### Contact
+* Este proyecto se rige por el Código de Conducta del Colaborador (CODE_OF_CONDUCT.md). Al participar, te comprometes a respetar este código. Informa cualquier comportamiento inaceptable a cualquier responsable del proyecto.
 
-Our prefered contact method is through [Github Discussions page](https://github.com/pivpn/pivpn/discussions)
+* Puedes encontrar nuestra documentación en https://docs.pivpn.io
+* Lee las publicaciones fijadas en los foros de discusión de GitHub (https://github.com/pivpn/pivpn/discussions).
+* Busca problemas similares (https://github.com/pivpn/pivpn/issues?q=). Puedes buscar y aplicar filtros para encontrar los problemas que mejor se ajusten a tu situación.
+* Por favor, busca discusiones similares en [Github.com/pivpn/pivpn/discussions].
+* Si no encuentras la respuesta, abre una incidencia en [Github.com/pivpn/pivpn/issues/new/choose] y haremos todo lo posible por ayudarte.
 
-But the you can also reach out at: 
+* Ayúdanos a ayudarte y completa la plantilla con la información solicitada, **aunque no te parezca relevante**.
+* El equipo de PiVPN puede cerrar cualquier discusión o incidencia sin previo aviso si no se siguen las directrices.
 
-* \#pivpn at [libera.chat](https://libera.chat) IRC network
-* \#pivpn:matrix.org at [matrix.org](https://matrix.org)
-* Reddit at [r/pivpn](https://www.reddit.com/r/pivpn/)
+### Contacto
 
-### Feature requests
+Nuestro método de contacto preferido es a través de la página de discusiones de GitHub en [Github.com/pivpn/pivpn/discussions].
 
-Feature requests are very welcome, please do so at:
+También puedes contactarnos en:
 
-* [Feature requests](https://github.com/pivpn/pivpn/discussions/categories/feature-requests)
+* #pivpn en [libera.chat] (Red IRC)
+* #pivpn:matrix.org [matrix.org](https://matrix.org)
+* Reddit en [r/pivpn](https://www.reddit.com/r/pivpn/)
 
-### Bug reports
+### Solicitudes de nuevas funciones
 
-* **Make sure the bug is not already reported** by searching on GitHub under [Issues](https://github.com/pivpn/pivpn/issues).
-* If you could not find an open issue addressing the problem, [open a new one](https://github.com/pivpn/pivpn/issues/new/choose). 
-  * Please provide all the data requested on the template **Even if it doesn't feel relevant to you** and, if possible, a **code sample** or an **executable test case** demonstrating the expected behavior that is not occurring.
+Las solicitudes de nuevas funciones son bienvenidas. Por favor, envíelas a:
 
+* [Solicitudes de nuevas funciones](https://github.com/pivpn/pivpn/discussions/categories/feature-requests)
 
-### Pull Requests
+### Informes de errores
 
-* Open a new GitHub pull request towards the [test](https://github.com/pivpn/pivpn/tree/test) branch.
-* Ensure the PR description clearly describes the problem and solution. Include the relevant issue number if applicable.
-* Use the following [commit rules](https://github.com/angular/angular/blob/main/CONTRIBUTING.md#-commit-message-format).
-* Use the following [code style rules](https://google.github.io/styleguide/shellguide.html). 
-  * We suggest you to use the following [shfmt](https://github.com/mvdan/sh) command: `shfmt -i 2 -ci -sr -w -bn`
+* **Asegúrese de que el error no haya sido reportado previamente** buscando en GitHub en [Problemas](https://github.com/pivpn/pivpn/issues).
 
-## Contributions
+* Si no encuentra un problema abierto que aborde el mismo, [abra uno nuevo](https://github.com/pivpn/pivpn/issues/new/choose). * Proporcione todos los datos solicitados en la plantilla, **aunque no le parezcan relevantes**, y, si es posible, un **ejemplo de código** o un **caso de prueba ejecutable** que demuestre el comportamiento esperado que no se está produciendo.
 
-PiVPN is not taking donations but if you want to show your appreciation, then contribute or leave feedback on suggestions or improvements.
+### Solicitudes de extracción
 
-Contributions can come in all kinds of different ways! You don't need to be a developer to help out. 
+* Abra una nueva solicitud de extracción en GitHub hacia la rama [test](https://github.com/pivpn/pivpn/tree/test).
 
-* Please check the current [issues](https://github.com/pivpn/pivpn/issues) and [discussions](https://github.com/pivpn/pivpn/discussions). Maybe there is something you can help with
-* [Documentation](https://github.com/pivpn/docs)! Documentation is never good enough! There is always something missing, or typos, or better English!
-* Our [website](https://pivpn.io) is also Open Source. feel free to suggest any changes or improvements [here](https://github.com/pivpn/pivpn.io)
-* Testing!!! Run pivpn in different ways, different systems, different configurations! Let us know if you find something!
-* Assisting other users in any of our official channels is also very welcomed
+* Asegúrese de que la descripción de la solicitud de extracción describa claramente el problema y la solución. Incluya el número de incidencia correspondiente, si procede.
 
-Still, if you consider PiVPN useful and want to Donate instead, then consider donating to:
+* Utilice las siguientes [reglas de confirmación](https://github.com/angular/angular/blob/main/CONTRIBUTING.md#-commit-message-format).
 
-1. [PiVPN Contributors](https://github.com/pivpn/pivpn/graphs/contributors)
+* Utilice las siguientes [reglas de estilo de código](https://google.github.io/styleguide/shellguide.html). * Le sugerimos usar el siguiente comando [shfmt](https://github.com/mvdan/sh): `shfmt -i 2 -ci -sr -w -bn`
+
+## Contribuciones
+
+PiVPN no acepta donaciones, pero si desea mostrar su agradecimiento, puede contribuir o dejar comentarios con sugerencias o mejoras.
+
+¡Las contribuciones pueden ser de muchas maneras! No necesita ser desarrollador para ayudar.
+
+* Consulte los [problemas](https://github.com/pivpn/pivpn/issues) y las [discusiones](https://github.com/pivpn/pivpn/discussions). Quizás pueda ayudar en algo.
+
+* ¡La [Documentación](https://github.com/pivpn/docs)! ¡La documentación nunca es suficiente! Siempre falta algo, hay errores tipográficos o se puede mejorar el inglés.
+
+Nuestro sitio web (https://pivpn.io) también es de código abierto. Siéntase libre de sugerir cambios o mejoras aquí (https://github.com/pivpn/pivpn.io).
+¡Prueba PiVPN! ¡Ejecuta PiVPN de diferentes maneras, en diferentes sistemas y con diferentes configuraciones! ¡Avísanos si encuentras algún problema!
+
+También agradecemos mucho la ayuda a otros usuarios en cualquiera de nuestros canales oficiales.
+
+Si consideras que PiVPN es útil y prefieres hacer una donación, puedes hacerlo a:
+
+1. [Colaboradores de PiVPN](https://github.com/pivpn/pivpn/graphs/contributors)
 2. [OpenVPNSetup](https://github.com/StarshipEngineer/OpenVPN-Setup)
 3. [pi-hole.net](https://github.com/pi-hole/pi-hole)
 4. [OpenVPN](https://openvpn.net)
