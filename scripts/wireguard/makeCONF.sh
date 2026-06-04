@@ -1,7 +1,7 @@
 #!/bin/bash
 
-### Constantss
-# Some vars that might be empty but need to be defined for checks
+### Constantes
+# Algunas variables que podrían estar vacías pero necesitan ser definidas para verificaciones
 pivpnPERSISTENTKEEPALIVE=""
 pivpnDNS2=""
 
@@ -19,52 +19,52 @@ source /opt/pivpn/ipaddr_utils.sh
 # shellcheck disable=SC2154
 userGroup="${install_user}:${install_user}"
 
-### Functions
+### Funciones
 err() {
   echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $*" >&2
 }
 
 helpFunc() {
-  echo "::: Create a client conf profile"
+  echo "::: Crear un perfil de configuración de cliente"
   echo ":::"
-  echo "::: Usage: pivpn <-a|add> [-n|--name <arg>] [-ip|--client-ip <ipv4>] [-h|--help]"
+  echo "::: Uso: pivpn <-a|add> [-n|--name <arg>] [-ip|--client-ip <ipv4>] [-h|--help]"
   echo ":::"
-  echo "::: Commands:"
-  echo ":::  [none]               Interactive mode"
-  echo ":::  -n,--name            Name for the Client (default: '${HOSTNAME}')"
-  echo ":::  -ip,--client-ip      IPv4 address of the Client ('auto' for automatically assigning IP)"
-  echo ":::  -h,--help            Show this help dialog"
+  echo "::: Comandos:"
+  echo ":::  [ninguno]            Modo interactivo"
+  echo ":::  -n,--name            Nombre para el Cliente (predeterminado: '${HOSTNAME}')"
+  echo ":::  -ip,--client-ip      Dirección IPv4 del Cliente ('auto' para asignar IP automáticamente)"
+  echo ":::  -h,--help            Mostrar este diálogo de ayuda"
 }
 
 checkName() {
-  # check name
+  # comprobar nombre
   if [[ -z "${CLIENT_NAME}" ]]; then
-    err "::: Name is blank. Defaulting to '${HOSTNAME}'."
+    err "::: El nombre está en blanco. Usando valor predeterminado '${HOSTNAME}'."
     CLIENT_NAME=$HOSTNAME
   fi
   if [[ "${CLIENT_NAME}" =~ [^a-zA-Z0-9.@_-] ]]; then
-    err "Name can only contain alphanumeric characters and these symbols (.-@_)."
+    err "El nombre solo puede contener caracteres alfanuméricos y estos símbolos (.-@_)."
     exit 1
   elif [[ "${CLIENT_NAME}" =~ ^[0-9]+$ ]]; then
-    err "Names cannot be integers."
+    err "Los nombres no pueden ser números enteros."
     exit 1
   elif [[ "${CLIENT_NAME}" =~ \ |\' ]]; then
-    err "Names cannot contain spaces."
+    err "Los nombres no pueden contener espacios."
     exit 1
   elif [[ "${CLIENT_NAME:0:1}" == "-" ]]; then
-    err "Name cannot start with - (dash)"
+    err "El nombre no puede comenzar con - (guion)"
     exit 1
   elif [[ "${CLIENT_NAME::1}" == "." ]]; then
-    err "Names cannot start with a . (dot)."
+    err "Los nombres no pueden comenzar con un . (punto)."
     exit 1
   elif [[ "${#CLIENT_NAME}" -gt 15 ]]; then
-    err "::: Names cannot be longer than 15 characters."
+    err "::: Los nombres no pueden tener más de 15 caracteres."
     exit 1
   elif [[ "${CLIENT_NAME}" == "server" ]]; then
-    err "Sorry, this is in use by the server and cannot be used by clients."
+    err "Lo siento, este nombre está en uso por el servidor y no puede ser usado por los clientes."
     exit 1
   elif [[ -f "configs/${CLIENT_NAME}.conf" ]]; then
-    err "::: A client with this name already exists."
+    err "::: Ya existe un cliente con este nombre."
     exit 1
   fi
 }
@@ -76,18 +76,18 @@ checkClientIP() {
   ipv4_regex+="(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])$"
 
   if [[ ! "${ip}" =~ $ipv4_regex ]]; then
-    err "::: Invalid IP: ${ip}"
+    err "::: IP inválida: ${ip}"
     exit 1
   fi
 }
 
 ### Script
 if [[ ! -f "${setupVars}" ]]; then
-  err "::: Missing setup vars file!"
+  err "::: ¡Falta el archivo de variables de configuración!"
   exit 1
 fi
 
-# Parse input arguments
+# Analizar argumentos de entrada
 while [[ "$#" -gt 0 ]]; do
   _key="${1}"
 
@@ -97,7 +97,7 @@ while [[ "$#" -gt 0 ]]; do
 
       if [[ "${_val}" == "${_key}" ]]; then
         [[ "$#" -lt 2 ]] \
-          && err "::: Missing value for the optional argument '${_key}'." \
+          && err "::: Falta valor para el argumento opcional '${_key}'." \
           && exit 1
 
         _val="${2}"
@@ -112,7 +112,7 @@ while [[ "$#" -gt 0 ]]; do
 
       if [[ "${_val}" == "${_key}" ]]; then
         [[ "$#" -lt 2 ]] \
-          && err "::: Missing value for the optional argument '${_key}'." \
+          && err "::: Falta valor para el argumento opcional '${_key}'." \
           && exit 1
 
         _val="${2}"
@@ -126,7 +126,7 @@ while [[ "$#" -gt 0 ]]; do
       exit 0
       ;;
     *)
-      err "::: Error: Got an unexpected argument '${1}'"
+      err "::: Error: Se recibió un argumento inesperado '${1}'"
       helpFunc
       exit 1
       ;;
@@ -135,9 +135,9 @@ while [[ "$#" -gt 0 ]]; do
   shift
 done
 
-# Disabling SC2154, variables sourced externaly
+# Deshabilitando SC2154, variables cargadas externamente
 # shellcheck disable=SC2154
-# The home folder variable was sourced from the settings file.
+# La variable de la carpeta de inicio se cargó desde el archivo de configuración.
 if [[ ! -d "${install_home}/configs" ]]; then
   mkdir "${install_home}/configs"
   chown "${userGroup}" "${install_home}/configs"
@@ -146,12 +146,12 @@ fi
 
 cd /etc/wireguard || exit
 
-# Exclude first, last and server addresses
+# Excluir la primera, última y la dirección del servidor
 # shellcheck disable=SC2154
 MAX_CLIENTS="$((2 ** (32 - subnetClass) - 3))"
 
 if [ "$(wc -l configs/clients.txt | awk '{print $1}')" -ge "${MAX_CLIENTS}" ]; then
-  echo "::: Can't add any more clients (max. ${MAX_CLIENTS})!"
+  echo "::: ¡No se pueden añadir más clientes (máx. ${MAX_CLIENTS})!"
   exit 1
 fi
 
@@ -165,7 +165,7 @@ FIRST_IPV4="$(decIPv4ToDot "${FIRST_IPV4_DEC}")"
 LAST_IPV4="$(decIPv4ToDot "${LAST_IPV4_DEC}")"
 
 if [[ -z "${CLIENT_IP}" ]]; then
-  read -p "Enter the Client IP from range ${FIRST_IPV4} - ${LAST_IPV4} (optional): " CLIENT_IP
+  read -p "Introduce la IP del Cliente del rango ${FIRST_IPV4} - ${LAST_IPV4} (opcional): " CLIENT_IP
 fi
 
 if [[ -n "${CLIENT_IP}" && "${CLIENT_IP}" != "auto" ]]; then
@@ -173,137 +173,29 @@ if [[ -n "${CLIENT_IP}" && "${CLIENT_IP}" != "auto" ]]; then
   ip="$(dotIPv4ToDec "${CLIENT_IP}")"
 
   if [[ "${ip}" -lt "${FIRST_IPV4_DEC}" || "${ip}" -gt "${LAST_IPV4_DEC}" ]]; then
-    err "::: The specified IP ${CLIENT_IP} is not in range ${FIRST_IPV4} - ${LAST_IPV4}"
+    err "::: La IP especificada ${CLIENT_IP} no está en el rango ${FIRST_IPV4} - ${LAST_IPV4}"
     exit 1
   fi
 
   if ! grep -q " ${ip}$" configs/clients.txt; then
     UNUSED_IPV4_DEC="${ip}"
   else
-    err "::: IP address ${CLIENT_IP} is already in use"
+    err "::: La dirección IP ${CLIENT_IP} ya está en uso"
     exit 1
   fi
 else
-  # Find an unused address for the client IP
+  # Encontrar una dirección no utilizada para la IP del cliente
   for ((ip = FIRST_IPV4_DEC; ip <= LAST_IPV4_DEC; ip++)); do
     if ! grep -q " ${ip}$" configs/clients.txt; then
       UNUSED_IPV4_DEC="${ip}"
-      echo "::: Chosen Client IP: $(decIPv4ToDot "${ip}")"
+      echo "::: IP de Cliente elegida: $(decIPv4ToDot "${ip}")"
       break
     fi
   done
 fi
 
 if [[ -z "${CLIENT_NAME}" ]]; then
-  read -r -p "Enter a Name for the Client (default: '${HOSTNAME}'): " CLIENT_NAME
+  read -r -p "Introduce un Nombre para el Cliente (predeterminado: '${HOSTNAME}'): " CLIENT_NAME
   checkName
 else
-  checkName
-fi
-
-wg genkey \
-  | tee "keys/${CLIENT_NAME}_priv" \
-  | wg pubkey > "keys/${CLIENT_NAME}_pub"
-wg genpsk | tee "keys/${CLIENT_NAME}_psk" &> /dev/null
-echo "::: Client Keys generated"
-
-UNUSED_IPV4_DOT="$(decIPv4ToDot "${UNUSED_IPV4_DEC}")"
-UNUSED_IPV4_HEX="$(decIPv4ToHex "${UNUSED_IPV4_DEC}")"
-
-# shellcheck disable=SC2154
-{
-  echo '[Interface]'
-  echo "PrivateKey = $(cat "keys/${CLIENT_NAME}_priv")"
-  echo -n "Address = ${UNUSED_IPV4_DOT}/${subnetClass}"
-
-  if [[ "${pivpnenableipv6}" == 1 ]]; then
-    echo ",${pivpnNETv6}${UNUSED_IPV4_HEX}/${subnetClassv6}"
-  else
-    echo
-  fi
-
-  echo -n "DNS = ${pivpnDNS1}"
-
-  if [[ -n "${pivpnDNS2}" ]]; then
-    echo ", ${pivpnDNS2}"
-  else
-    echo
-  fi
-
-  echo
-  echo '[Peer]'
-  echo "PublicKey = $(cat keys/server_pub)"
-  echo "PresharedKey = $(cat "keys/${CLIENT_NAME}_psk")"
-  echo "Endpoint = ${pivpnHOST}:${pivpnPORT}"
-  echo "AllowedIPs = ${ALLOWED_IPS}"
-
-  if [[ -n "${pivpnPERSISTENTKEEPALIVE}" ]]; then
-    echo "PersistentKeepalive = ${pivpnPERSISTENTKEEPALIVE}"
-  fi
-} > "configs/${CLIENT_NAME}.conf"
-
-echo "::: Client config generated"
-
-{
-  echo "### begin ${CLIENT_NAME} ###"
-  echo '[Peer]'
-  echo "PublicKey = $(cat "keys/${CLIENT_NAME}_pub")"
-  echo "PresharedKey = $(cat "keys/${CLIENT_NAME}_psk")"
-  echo -n "AllowedIPs = ${UNUSED_IPV4_DOT}/32"
-
-  if [[ "${pivpnenableipv6}" == 1 ]]; then
-    echo ",${pivpnNETv6}${UNUSED_IPV4_HEX}/128"
-  else
-    echo
-  fi
-
-  echo "### end ${CLIENT_NAME} ###"
-} >> wg0.conf
-
-echo "::: Updated server config"
-
-echo "${CLIENT_NAME} $(< keys/"${CLIENT_NAME}"_pub) $(date +%s) ${UNUSED_IPV4_DEC}" \
-  | tee -a configs/clients.txt > /dev/null
-
-if [[ -f /etc/pivpn/hosts.wireguard ]]; then
-  echo "${UNUSED_IPV4_DOT} ${CLIENT_NAME}.pivpn" \
-    | tee -a /etc/pivpn/hosts.wireguard > /dev/null
-
-  if [[ "${pivpnenableipv6}" == 1 ]]; then
-    echo "${pivpnNETv6}${UNUSED_IPV4_HEX} ${CLIENT_NAME}.pivpn" \
-      | tee -a /etc/pivpn/hosts.wireguard > /dev/null
-  fi
-
-  if killall -SIGHUP pihole-FTL; then
-    echo "::: Updated hosts file for Pi-hole"
-  else
-    err "::: Failed to reload pihole-FTL configuration"
-  fi
-fi
-
-if [[ "${PLAT}" == 'Alpine' ]]; then
-  if rc-service wg-quick restart; then
-    echo "::: WireGuard reloaded"
-  else
-    err "::: Failed to reload WireGuard"
-  fi
-else
-  if systemctl reload wg-quick@wg0; then
-    echo "::: WireGuard reloaded"
-  else
-    err "::: Failed to reload WireGuard"
-  fi
-fi
-
-cp "configs/${CLIENT_NAME}.conf" "${install_home}/configs/${CLIENT_NAME}.conf"
-chown "${userGroup}" "${install_home}/configs/${CLIENT_NAME}.conf"
-chmod 640 "${install_home}/configs/${CLIENT_NAME}.conf"
-
-echo "======================================================================"
-echo -e "::: Done! \e[1m${CLIENT_NAME}.conf successfully created!\e[0m"
-echo -n "::: ${CLIENT_NAME}.conf was copied to ${install_home}/configs for easy"
-echo "transfer."
-echo "::: Please use this profile only on one device and create additional"
-echo -e "::: profiles for other devices. You can also use \e[1mpivpn -qr\e[0m"
-echo "::: to generate a QR Code you can scan with the mobile app."
-echo "======================================================================"
+  check
