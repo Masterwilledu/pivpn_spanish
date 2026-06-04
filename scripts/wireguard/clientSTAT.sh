@@ -1,23 +1,23 @@
 #!/bin/bash
-# PiVPN: client status script
+# PiVPN: script de estado de clientes
 
-### Constants
+### Constantes
 CLIENTS_FILE="/etc/wireguard/configs/clients.txt"
 
-### Functions
+### Funciones
 err() {
   echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $*" >&2
 }
 
 scriptusage() {
-  echo "::: List any connected clients to the server"
+  echo "::: Lista cualquier cliente conectado al servidor VPN"
   echo ":::"
-  echo "::: Usage: pivpn <-c|clients> [-b|bytes]"
+  echo "::: Uso: pivpn <-c|clients> [-b|bytes]"
   echo ":::"
-  echo "::: Commands:"
-  echo ":::  [none]              List clients with human readable format"
-  echo ":::  -b, bytes           List clients with dotted decimal notation"
-  echo ":::  -h, help            Show this usage dialog"
+  echo "::: Comandos:"
+  echo ":::  [ninguno]           Lista clientes con formato legible para humanos"
+  echo ":::  -b, bytes           Lista clientes con notación decimal"
+  echo ":::  -h, help            Muestra este diálogo de uso"
 }
 
 hr() {
@@ -31,12 +31,12 @@ listClients() {
     exit 1
   fi
 
-  printf "\e[1m::: Connected Clients List :::\e[0m\n"
+  printf "\e[1m::: Lista de Clientes Conectados :::\e[0m\n"
 
   {
-    printf "\e[4mName\e[0m  \t  \e[4mRemote IP\e[0m  \t  \e[4mVirtual IP\e[0m"
-    printf "\t  \e[4mBytes Received\e[0m  \t  \e[4mBytes Sent\e[0m  "
-    printf "\t  \e[4mLast Seen\e[0m\n"
+    printf "\e[4mNombre\e[0m  \t  \e[4mIP Remota\e[0m  \t  \e[4mIP Virtual\e[0m"
+    printf "\t  \e[4mBytes Recibidos\e[0m  \t  \e[4mBytes Enviados\e[0m  "
+    printf "\t  \e[4mÚltima Conexión\e[0m\n"
 
     while IFS= read -r LINE; do
       if [[ -n "${LINE}" ]]; then
@@ -64,7 +64,7 @@ listClients() {
         if [[ "${LAST_SEEN}" -ne 0 ]]; then
           printf "%s" "$(date -d @"${LAST_SEEN}" '+%b %d %Y - %T')"
         else
-          printf "(not yet)"
+          printf "(aún no)"
         fi
 
         printf "\n"
@@ -76,13 +76,13 @@ listClients() {
 
   cd /etc/wireguard || return
 
-  echo "::: Disabled clients :::"
+  echo "::: Clientes deshabilitados :::"
   grep '\[disabled\] ### begin' wg0.conf | sed 's/#//g; s/begin//'
 }
 
 ### Script
 if [[ ! -s "${CLIENTS_FILE}" ]]; then
-  err "::: There are no clients to list"
+  err "::: No hay clientes para listar"
   exit 0
 fi
 
