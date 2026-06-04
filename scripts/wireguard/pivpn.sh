@@ -95,7 +95,7 @@ showHelp() {
   echo ":::    -c, clients          Listar cualquier cliente conectado al servidor"
   echo ":::    -d, debug            Iniciar una sesión de depuración si hay problemas"
   echo ":::    -l, list             Listar todos los clientes"
-  echo -n ":::   -qr, qrcode           Mostrar el código QR de un cliente para su uso "
+  echo -n ":::   -qr, qrcode           Mostrar el código QR de un cliente para usar "
   echo "con la aplicación móvil"
   echo ":::    -r, remove           Eliminar un cliente"
   echo ":::  -off, off              Deshabilitar un cliente"
