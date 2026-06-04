@@ -1,4 +1,4 @@
-> [!ADVERTENCIA]
+> [!ADVERTENCIA!]
 > PiVPN se mantiene con el máximo esfuerzo posible; para obtener más información consulte [aquí](https://github.com/pivpn/pivpn/releases/tag/v4.6.1). La versión anterior se encuentra [aquí](https://github.com/pivpn/pivpn/releases/tag/v4.6.0).
 
 ![Pivpn Banner](pivpnbanner.png)
@@ -35,12 +35,6 @@ PiVPN también debería funcionar con la mayoría de las distribuciones basadas 
 ## Instalación
 
 ### Metodo 1 (Estandar)
-
-```Shell
-curl -L https://install.pivpn.io | bash
-```
-
-### Metodo 2 (Enlace directo)
 
 ```Shell
 curl https://raw.githubusercontent.com/pivpn/pivpn/master/auto_install/install.sh | bash
