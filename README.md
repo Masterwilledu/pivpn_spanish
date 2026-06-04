@@ -23,7 +23,7 @@ La misión principal de este script es permitir que un usuario tenga una VPN lo 
 
 Dicho esto...
 
-PiVPN es, sin duda, la forma más sencilla y rápida de instalar y configurar un servidor **OpenVPN** o **WireGuard** extremadamente seguro en tu Raspberry Pi. No necesitarás una guía ni un tutorial, ya que PiVPN lo hará todo por ti en mucho menos tiempo, con ajustes de seguridad reforzados por defecto.
+PiVPN es, sin duda, la forma más sencilla y rápida de instalar y configurar un servidor **OpenVPN** o **WireGuard** extremadamente seguro en tu Raspberry Pi o PC. No necesitarás una guía ni un tutorial, ya que PiVPN lo hará todo por ti en mucho menos tiempo, con ajustes de seguridad reforzados por defecto.
 
 Recomendamos ejecutar PiVPN en la última imagen de Raspberry Pi OS Lite para la Raspberry Pi de tu casa, que puedas conectarte a tu red VPN desde ubicaciones remotas no seguras y usar Internet de forma segura. Sin embargo, también puedes usar PiVPN en otras computadoras monoplaca (SBC) que tengan sistema operativo Ubuntu/Debian o si tienes un ISP (Proveedor de Internet) poco fiable (que no permita abrir puertos TCP/UDP) puedes adquirir cualquier VPS (Servidor Privado Virtual) de un proveedor de servicios en la nube con Ubuntu o Debian. Al usar una VPN en un servidor externo, puedes conectarte desde casa y, dado que tu tráfico saldrá del proveedor de la nube/VPS, tu proveedor de internet solo verá tráfico cifrado.
 
