@@ -61,7 +61,7 @@ listClients() {
           "${STATUS_LOG}"
       fi
     else
-      printf "\nNo Clients Connected!\n"
+      printf "\nNo hay clientes conectados!\n"
     fi
 
     printf "\n"
@@ -69,7 +69,7 @@ listClients() {
 }
 
 if [[ ! -f "${STATUS_LOG}" ]]; then
-  err "The file: ${STATUS_LOG} was not found!"
+  err "¡No se encontró el archivo: ${STATUS_LOG}!"
   exit 1
 fi
 
