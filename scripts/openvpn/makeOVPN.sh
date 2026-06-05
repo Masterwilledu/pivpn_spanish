@@ -56,22 +56,22 @@ helpFunc() {
 checkName() {
   # check name
   if [[ "${NAME}" =~ [^a-zA-Z0-9.@_-] ]]; then
-    err "Name can only contain alphanumeric characters and these symbols (.-@_)."
+    err "El nombre solo puede contener caracteres alfanuméricos y estos símbolos (.-@_)."
     exit 1
   elif [[ "${NAME}" =~ ^[0-9]+$ ]]; then
-    err "Names cannot be integers."
+    err "Los nombres no pueden ser números enteros."
     exit 1
   elif [[ "${NAME}" =~ \ |\' ]]; then
-    err "Names cannot contain spaces."
+    err "Los nombres no pueden contener espacios."
     exit 1
   elif [[ "${NAME:0:1}" == "-" ]]; then
-    err "Name cannot start with - (dash)"
+    err "El nombre no puede comenzar con - (guion)"
     exit 1
   elif [[ "${NAME::1}" == "." ]]; then
-    err "Names cannot start with a . (dot)."
+    err "Los nombres no pueden comenzar con un punto (.)"
     exit 1
   elif [[ -z "${NAME}" ]]; then
-    err "::: You cannot leave the name blank."
+    err "::: No puedes dejar el nombre en blanco."
     exit 1
   fi
 }
