@@ -23,7 +23,7 @@ hr() {
 }
 
 listClients() {
-  printf ": NOTA: La salida que se muestra a continuación NO es en tiempo real!\n"
+  printf ": NOTA : La salida que se muestra a continuación NO es en tiempo real!\n"
   printf ":      : Puede tener un desfase de unos minutos.\n"
   printf "\n"
   printf "\e[1m::: Lista de Estado de Clientes :::\e[0m\n"
