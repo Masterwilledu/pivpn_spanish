@@ -1,6 +1,6 @@
 #!/bin/bash
 
-### Constants
+### Constantes
 setupVars="/etc/pivpn/wireguard/setupVars.conf"
 
 # shellcheck disable=SC1090
@@ -12,31 +12,31 @@ fi
 # shellcheck disable=SC1091
 source /opt/pivpn/ipaddr_utils.sh
 
-### Functions
+### Funciones
 err() {
   echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $*" >&2
 }
 
 helpFunc() {
-  echo "::: Remove a client conf profile"
+  echo "::: Eliminar un perfil de configuración de cliente"
   echo ":::"
-  echo -n "::: Usage: pivpn <-r|remove> [-y|--yes] [-h|--help] "
-  echo "[<client-1> ... [<client-2>] ...]"
+  echo -n "::: Uso: pivpn <-r|remove> [-y|--yes] [-h|--help] "
+  echo "[<cliente-1> ... [<cliente-2>] ...]"
   echo ":::"
-  echo "::: Commands:"
-  echo ":::  [none]               Interactive mode"
-  echo ":::  <client>             Client(s) to remove"
-  echo ":::  -y,--yes             Remove Client(s) without confirmation"
-  echo ":::  -h,--help            Show this help dialog"
+  echo "::: Comandos:"
+  echo ":::  [ninguno]            Modo interactivo"
+  echo ":::  <cliente>            Cliente(s) a eliminar"
+  echo ":::  -y,--yes             Eliminar cliente(s) sin confirmación"
+  echo ":::  -h,--help            Mostrar este diálogo de ayuda"
 }
 
 ### Script
 if [[ ! -f "${setupVars}" ]]; then
-  err "::: Missing setup vars file!"
+  err "::: ¡Falta el archivo de variables de configuración!"
   exit 1
 fi
 
-# Parse input arguments
+# Analizar los argumentos de entrada
 while [[ "$#" -gt 0 ]]; do
   _key="${1}"
 
@@ -59,14 +59,14 @@ done
 cd /etc/wireguard || exit
 
 if [[ ! -s configs/clients.txt ]]; then
-  err "::: There are no clients to remove"
+  err "::: No hay clientes para eliminar"
   exit 1
 fi
 
 mapfile -t LIST < <(awk '{print $1}' configs/clients.txt)
 
 if [[ "${#CLIENTS_TO_REMOVE[@]}" -eq 0 ]]; then
-  echo -e "::\e[4m  Client list  \e[0m::"
+  echo -e "::\e[4m  Lista de clientes  \e[0m::"
   len="${#LIST[@]}"
   COUNTER=1
 
@@ -75,12 +75,12 @@ if [[ "${#CLIENTS_TO_REMOVE[@]}" -eq 0 ]]; then
     ((COUNTER++))
   done
 
-  echo -n "Please enter the Index/Name of the Client to be removed "
-  echo -n "from the list above: "
+  echo -n "Por favor, introduce el índice/nombre del cliente que deseas eliminar "
+  echo -n "de la lista anterior: "
   read -r CLIENTS_TO_REMOVE
 
   if [[ -z "${CLIENTS_TO_REMOVE}" ]]; then
-    err "::: You can not leave this blank!"
+    err "::: ¡No puedes dejar esto en blanco!"
     exit 1
   fi
 fi
@@ -95,49 +95,51 @@ for CLIENT_NAME in "${CLIENTS_TO_REMOVE[@]}"; do
   fi
 
   if ! grep -q "^${CLIENT_NAME} " configs/clients.txt; then
-    echo -e "::: \e[1m${CLIENT_NAME}\e[0m does not exist"
+    echo -e "::: \e[1m${CLIENT_NAME}\e[0m no existe"
   else
     REQUESTED="$(sha256sum "configs/${CLIENT_NAME}.conf" | cut -c 1-64)"
 
     if [[ -n "${CONFIRM}" ]]; then
       REPLY="y"
     else
-      read -r -p "Do you really want to delete ${CLIENT_NAME}? [y/N] "
+      # Se mantiene el indicador [y/N] para que el usuario sepa que la condición interna espera 'y' o 'Y'
+      read -r -p "¿Realmente deseas eliminar a ${CLIENT_NAME}? [y/N] "
     fi
 
     if [[ "${REPLY}" =~ ^[Yy]$ ]]; then
-      # Grab the decimal representation of the client IP address
+      # Obtener la representación decimal de la dirección IP del cliente
       IPV4_DEC="$(grep "^${CLIENT_NAME} " configs/clients.txt | awk '{print $4}')"
-      # The creation date of the client
+      # La fecha de creación del cliente
       CREATION_DATE="$(grep "^${CLIENT_NAME} " configs/clients.txt \
         | awk '{print $3}')"
-      # And its public key
+      # Y su clave pública
       PUBLIC_KEY="$(grep "^${CLIENT_NAME} " configs/clients.txt \
         | awk '{print $2}')"
 
-      # Then remove the client matching the variables above
+      # Luego eliminar el cliente que coincida con las variables de arriba
       sed \
         -e "\#${CLIENT_NAME} ${PUBLIC_KEY} ${CREATION_DATE} ${IPV4_DEC}#d" \
         -i configs/clients.txt
 
-      # Remove the peer section from the server config
+      # Eliminar la sección del peer de la configuración del servidor
       sed_pattern="/### begin ${CLIENT_NAME} ###/,"
       sed_pattern="${sed_pattern}/### end ${CLIENT_NAME} ###/d"
       sed -e "${sed_pattern}" -i wg0.conf
-      echo "::: Updated server config"
+      echo "::: Configuración del servidor actualizada"
 
       rm "configs/${CLIENT_NAME}.conf"
-      echo "::: Client config for ${CLIENT_NAME} removed"
+      echo "::: Configuración de cliente para ${CLIENT_NAME} eliminada"
 
       rm "keys/${CLIENT_NAME}_priv"
       rm "keys/${CLIENT_NAME}_pub"
       rm "keys/${CLIENT_NAME}_psk"
-      echo "::: Client Keys for ${CLIENT_NAME} removed"
+      echo "::: Claves de cliente para ${CLIENT_NAME} eliminadas"
 
-      # Find all .conf files in the home folder of the user matching the
-      # checksum of the config and delete them. '-maxdepth 3' is used to
-      # avoid traversing too many folders.
-      # Disabling SC2154, variable sourced externaly and may vary
+      # Buscar todos los archivos .conf en la carpeta personal del usuario que coincidan
+      # con la suma de verificación (checksum) de la configuración y eliminarlos.
+      # Se usa '-maxdepth 3' para
+      # evitar recorrer demasiadas carpetas.
+      # Deshabilitando SC2154, la variable se origina externamente y puede variar
       # shellcheck disable=SC2154
       while IFS= read -r -d '' CONFIG; do
         if sha256sum -c <<< "${REQUESTED}  ${CONFIG}" &> /dev/null; then
@@ -147,10 +149,10 @@ for CLIENT_NAME in "${CLIENTS_TO_REMOVE[@]}"; do
         -maxdepth 3 -type f -name '*.conf' -print0)
 
       ((DELETED_COUNT++))
-      echo "::: Successfully deleted ${CLIENT_NAME}"
+      echo "::: ${CLIENT_NAME} eliminado con éxito"
 
-      # If using Pi-hole, remove the client from the hosts file
-      # Disabling SC2154, variable sourced externaly and may vary
+      # Si se usa Pi-hole, eliminar el cliente del archivo hosts
+      # Deshabilitando SC2154, la variable se origina externamente y puede variar
       # shellcheck disable=SC2154
       if [[ -f /etc/pivpn/hosts.wireguard ]]; then
         IPV4_DOT="$(decIPv4ToDot "${IPV4_DEC}")"
@@ -161,33 +163,34 @@ for CLIENT_NAME in "${CLIENTS_TO_REMOVE[@]}"; do
           -i /etc/pivpn/hosts.wireguard
 
         if killall -SIGHUP pihole-FTL; then
-          echo "::: Updated hosts file for Pi-hole"
+          echo "::: Archivo hosts actualizado para Pi-hole"
         else
-          err "::: Failed to reload pihole-FTL configuration"
+          err "::: Fallo al recargar la configuración de pihole-FTL"
         fi
       fi
 
       unset sed_pattern
     else
-      err "Aborting operation"
+      err "Abortando la operación"
       exit 1
     fi
   fi
 done
 
-# Restart WireGuard only if some clients were actually deleted
+# Reiniciar WireGuard solo si realmente se eliminaron algunos clientes
 if [[ "${DELETED_COUNT}" -gt 0 ]]; then
   if [[ "${PLAT}" == 'Alpine' ]]; then
     if rc-service wg-quick restart; then
-      echo "::: WireGuard reloaded"
+      echo "::: WireGuard recargado"
     else
-      err "::: Failed to reload WireGuard"
+      err "::: Fallo al recargar WireGuard"
     fi
   else
     if systemctl reload wg-quick@wg0; then
-      echo "::: WireGuard reloaded"
+      echo "::: WireGuard recargado"
     else
-      err "::: Failed to reload WireGuard"
+      err "::: Fallo al recargar WireGuard"
     fi
   fi
 fi
+}
