@@ -37,15 +37,15 @@ Antes de proceder con la instalación, asegúrate de que tu sistema cumpla con l
 
 *   **Sistema Operativo Compatible:** 
     *   Raspberry Pi OS (Lite o Desktop)
-    *   Ubuntu Server (18.04 LTS o superior)
-    *   Debian (10 o superior)
+    *   Ubuntu Server/Desktop (18.04 LTS o superior)
+    *   Debian Server/Desktop (10 o superior)
 *   **Acceso Root:** Es necesario contar con privilegios de administrador (`sudo`).
 *   **Red Estable:** Una conexión a internet activa para descargar los paquetes necesarios.
 *   **IP Estática:** Se recomienda encarecidamente configurar una dirección IP local estática o reservada (reservada en DHCP) para tu servidor antes de empezar.
-*   **Puerto Abierto (Router):** Necesitarás acceso a tu router para redirigir el puerto de la VPN (típicamente el puerto UDP `51820` para WireGuard o UDP `1194` para OpenVPN).
+*   **Puerto Abierto (Enrutador):** Necesitarás acceso a tu router para redirigir el puerto de la VPN (típicamente el puerto UDP `51820` para WireGuard o UDP `1194` para OpenVPN).
 
 ----
-## Instalación
+## :hammer_and_wrench: Instalación
 
 ### Metodo 1 (Estándar)
 
