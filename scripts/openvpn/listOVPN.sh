@@ -1,7 +1,7 @@
 #!/bin/bash
-# PiVPN: list clients script
-# Updated Script to include Expiration Dates and
-# Clean up Escape Seq -- psgoundar
+# PiVPN: script de lista de clientes
+# Script actualizado para incluir fechas de vencimiento y
+# Secuencia de escape de limpieza -- psgoundar
 
 INDEX="/etc/openvpn/easy-rsa/pki/index.txt"
 EASYRSA="/etc/openvpn/easy-rsa/easyrsa"
@@ -11,12 +11,12 @@ err() {
 }
 
 if [[ ! -f "${INDEX}" ]]; then
-  err "The file: ${INDEX} was not found!"
+  err "¡No se encontró el archivo: ${INDEX}!"
   exit 1
 fi
 
 if [[ ! -f "${EASYRSA}" ]]; then
-  err "The file: ${EASYRSA} was not found!"
+  err "¡No se encontró el archivo: ${EASYRSA}!"
   exit 1
 fi
 
