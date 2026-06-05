@@ -1,16 +1,16 @@
 #!/bin/bash
-# PiVPN: Backup Script
+# PiVPN: Script de Copia de Respaldo
 
-### Constants
-# Find the rows and columns. Will default to 80x24 if it can not be detected.
+### Constantes
+# Encuentra las filas y columnas. Por defecto será 80x24 si no se puede detectar.
 screen_size="$(stty size 2> /dev/null || echo 24 80)"
 rows="$(echo "${screen_size}" | awk '{print $1}')"
 columns="$(echo "${screen_size}" | awk '{print $2}')"
 
-# Divide by two so the dialogs take up half of the screen, which looks nice.
+# Dividir por dos para que los cuadros de diálogo ocupen la mitad de la pantalla, lo que se ve bien.
 r=$((rows / 2))
 c=$((columns / 2))
-# Unless the screen is tiny
+# A menos que la pantalla sea minúscula
 r=$((r < 20 ? 20 : r))
 c=$((c < 70 ? 70 : c))
 
@@ -21,13 +21,13 @@ setupConfigDir="/etc/pivpn"
 
 CHECK_PKG_INSTALLED='dpkg-query -s'
 
-### Functions
+### Funciones
 err() {
   echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $*" >&2
 }
 
 checkbackupdir() {
-  # Disabling shellcheck error $install_home sourced from $setupVars
+  # Deshabilitando el error de shellcheck, $install_home se obtiene de $setupVars
   # shellcheck disable=SC2154
   mkdir -p "${install_home}/${backupdir}"
 }
@@ -38,56 +38,62 @@ backup_openvpn() {
   backupzip="${date}-pivpnovpnbackup.tgz"
 
   checkbackupdir
-  # shellcheck disable=SC2210
-  tar czpf "${install_home}/${backupdir}/${backupzip}" "${openvpndir}" \
-    "${ovpnsdir}" > /dev/null 2>&1
+  # shellcheck disable=SC2154
+  echo "::: Realizando respaldo de OpenVPN..."
+  
+  # shellcheck disable=SC2154
+  tar -czf "${install_home}/${backupdir}/${backupzip}" \
+    "${openvpndir}/easy-rsa/pki" \
+    "${openvpndir}/server.conf" \
+    "${ovpnsdir}" \
+    "${setupConfigDir}/openvpn/${setupVarsFile}" 2> /dev/null
 
-  echo -e "Backup created in ${install_home}/${backupdir}/${backupzip} "
-  echo -e "To restore the backup, follow instructions at:"
-  echo -ne "https://docs.pivpn.io/openvpn/"
-  echo -e "#migrating-pivpn-openvpn"
+  echo "::: Respaldo creado en: ${install_home}/${backupdir}/${backupzip}"
 }
 
 backup_wireguard() {
-  wireguarddir=/etc/wireguard
-  configsdir="${install_home}/configs"
+  wgdir=/etc/wireguard
   backupzip="${date}-pivpnwgbackup.tgz"
 
   checkbackupdir
-  tar czpf "${install_home}/${backupdir}/${backupzip}" "${wireguarddir}" \
-    "${configsdir}" > /dev/null 2>&1
+  echo "::: Realizando respaldo de WireGuard..."
 
-  echo -e "Backup created in ${install_home}/${backupdir}/${backupzip} "
-  echo -e "To restore the backup, follow instructions at:"
-  echo -ne "https://docs.pivpn.io/wireguard/"
-  echo -e "#migrating-pivpn-wireguard"
+  # shellcheck disable=SC2154
+  tar -czf "${install_home}/${backupdir}/${backupzip}" \
+    "${wgdir}/wg0.conf" \
+    "${wgdir}/keys" \
+    "${install_home}/configs" \
+    "${setupConfigDir}/wireguard/${setupVarsFile}" 2> /dev/null
+
+  echo "::: Respaldo creado en: ${install_home}/${backupdir}/${backupzip}"
 }
 
 ### Script
 if [[ -r "${setupConfigDir}/wireguard/${setupVarsFile}" ]] \
   && [[ -r "${setupConfigDir}/openvpn/${setupVarsFile}" ]]; then
-  # Two protocols have been installed, check if the script has passed
-  # an argument, otherwise ask the user which one he wants to remove
+
+  # Se han instalado dos protocolos, comprobar si el script ha recibido
+  # un argumento, de lo contrario preguntar al usuario cuál quiere respaldar
   if [[ "$#" -ge 1 ]]; then
     VPN="${1}"
-    echo "::: Backing up VPN: ${VPN}"
+    echo "::: Respaldando VPN: ${VPN}"
   else
     chooseVPNCmd=(whiptail
-      --backtitle "Setup PiVPN"
-      --title "Backup"
+      --backtitle "Configuración de PiVPN"
+      --title "Respaldo"
       --separate-output
-      --radiolist "Both OpenVPN and WireGuard are installed, choose a VPN to \
-backup (press space to select):"
+      --radiolist "Tanto OpenVPN como WireGuard están instalados, elige una VPN para \
+respaldar (presiona espacio para seleccionar):"
       "${r}" "${c}" 2)
     VPNChooseOptions=(WireGuard "" on
       OpenVPN "" off)
 
     if VPN="$("${chooseVPNCmd[@]}" "${VPNChooseOptions[@]}" 2>&1 \
       > /dev/tty)"; then
-      echo "::: Backing up VPN: ${VPN}"
+      echo "::: Respaldando VPN: ${VPN}"
       VPN="${VPN,,}"
     else
-      err "::: Cancel selected, exiting...."
+      err "::: Selección cancelada, saliendo..."
       exit 1
     fi
   fi
@@ -102,7 +108,7 @@ else
 fi
 
 if [[ ! -f "${setupVars}" ]]; then
-  err "::: Missing setup vars file!"
+  err "::: ¡Falta el archivo de variables de configuración!"
   exit 1
 fi
 
@@ -113,17 +119,8 @@ if [[ "${PLAT}" == 'Alpine' ]]; then
   CHECK_PKG_INSTALLED='apk --no-cache info -e'
 fi
 
-if [[ "${EUID}" -ne 0 ]]; then
-  if ${CHECK_PKG_INSTALLED} sudo &> /dev/null; then
-    export SUDO="sudo"
-  else
-    err "::: Please install sudo or run this as root."
-    exit 1
-  fi
-fi
-
 if [[ "${VPN}" == "wireguard" ]]; then
   backup_wireguard
-else
+elif [[ "${VPN}" == "openvpn" ]]; then
   backup_openvpn
 fi
