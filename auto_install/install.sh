@@ -12,7 +12,7 @@
 # Puedes instalar cURL (Cliente para URLs) con el comando: sudo apt install curl 
 
 ######## VARIABLES #########
-pivpnGitUrl="https://github.com/Masterwilledu/pivpn.git"
+pivpnGitUrl="https://github.com/Masterwilledu/pivpn_spanish.git"
 # Descomenta para usar una rama personalizada para los archivos locales de pivpn
 #pivpnGitBranch="custombranchtocheckout"
 setupVarsFile="setupVars.conf"
