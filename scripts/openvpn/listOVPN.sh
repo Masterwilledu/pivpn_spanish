@@ -25,7 +25,7 @@ fi
 printf ": NOTA : La primera entrada es su servidor, "
 printf "que siempre debe ser válido!\n"
 printf "\\n"
-printf "\\e[1m::: Lista de estado del certificado :::\\e[0m\\n"
+printf "\\e[1m::: Lista de estado de certificado :::\\e[0m\\n"
 
 {
   printf "\\e[4mEstado\\e[0m  \t  \\e[4mNombre\\e[0m\\e[0m  \t  "
