@@ -22,14 +22,14 @@ fi
 
 "${EASYRSA}" update-db >> /dev/null 2>&1
 
-printf ": NOTE : The first entry is your server, "
-printf "which should always be valid!\n"
+printf ": NOTA : La primera entrada es su servidor, "
+printf "que siempre debe ser válido!\n"
 printf "\\n"
-printf "\\e[1m::: Certificate Status List :::\\e[0m\\n"
+printf "\\e[1m::: Lista de estado del certificado :::\\e[0m\\n"
 
 {
-  printf "\\e[4mStatus\\e[0m  \t  \\e[4mName\\e[0m\\e[0m  \t  "
-  printf "\\e[4mExpiration\\e[0m\\n"
+  printf "\\e[4mEstado\\e[0m  \t  \\e[4mNombre\\e[0m\\e[0m  \t  "
+  printf "\\e[4mVencimiento\\e[0m\\n"
 
   while read -r line || [[ -n "${line}" ]]; do
     STATUS="$(echo "${line}" | awk '{print $1}')"
