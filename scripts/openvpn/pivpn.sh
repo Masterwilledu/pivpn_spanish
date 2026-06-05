@@ -1,6 +1,6 @@
 #!/bin/bash
 
-### Constants
+### Constantes
 CHECK_PKG_INSTALLED='dpkg-query -s'
 
 if grep -qsEe "^NAME\=['\"]?Alpine[a-zA-Z ]*['\"]?$" /etc/os-release; then
@@ -10,7 +10,7 @@ fi
 scriptDir="/opt/pivpn"
 vpn="openvpn"
 
-### Functions
+### Funciones
 err() {
   echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $*" >&2
 }
@@ -33,14 +33,14 @@ listOVPNFunc() {
 }
 
 debugFunc() {
-  echo "::: Generating Debug Output"
+  echo "::: Generando salida de depuración"
 
   ${SUDO} "${scriptDir}/${vpn}/pivpnDebug.sh" | tee /tmp/debug.log
   e="${?}"
 
   echo "::: "
-  echo "::: Debug output completed above."
-  echo "::: Copy saved to /tmp/debug.log"
+  echo "::: Salida de depuración completada arriba."
+  echo "::: Copia guardada en /tmp/debug.log"
   echo "::: "
   exit "${e}"
 }
@@ -68,29 +68,29 @@ backup() {
 }
 
 helpFunc() {
-  echo "::: Control all PiVPN specific functions!"
+  echo "::: ¡Controla todas las funciones específicas de PiVPN!"
   echo ":::"
-  echo "::: Usage: pivpn <command> [option]"
+  echo "::: Uso: pivpn <comando> [opción]"
   echo ":::"
-  echo "::: Commands:"
-  echo ":::  -a, add [nopass]     Create a client ovpn profile, optional nopass"
-  echo ":::  -c, clients          List any connected clients to the server"
-  echo ":::  -d, debug            Start a debugging session if having trouble"
-  echo ":::  -l, list             List all valid and revoked certificates"
-  echo ":::  -r, revoke           Revoke a client ovpn profile"
-  echo ":::  -h, help             Show this help dialog"
-  echo ":::  -u, uninstall        Uninstall PiVPN from your system!"
-  echo ":::  -up, update          Updates PiVPN Scripts"
-  echo ":::  -bk, backup          Backup Openvpn and ovpns dir"
+  echo "::: Comandos:"
+  echo ":::  -a, add [nopass]     Crear un perfil ovpn de cliente, nopass opcional"
+  echo ":::  -c, clients          Listar los clientes conectados al servidor"
+  echo ":::  -d, debug            Iniciar una sesión de depuración si tienes problemas"
+  echo ":::  -l, list             Listar todos los certificados válidos y revocados"
+  echo ":::  -r, revoke           Revocar un perfil ovpn de cliente"
+  echo ":::  -h, help             Mostrar este diálogo de ayuda"
+  echo ":::  -u, uninstall        ¡Desinstalar PiVPN de tu sistema!"
+  echo ":::  -up, update          Actualizar los scripts de PiVPN"
+  echo ":::  -bk, backup          Respaldar el directorio de Openvpn y ovpns"
   exit 0
 }
 
-# Must be root to use this tool
+# Debe ser root para usar esta herramienta
 if [[ "${EUID}" -ne 0 ]]; then
   if ${CHECK_PKG_INSTALLED} sudo &> /dev/null; then
     export SUDO="sudo"
   else
-    err "::: Please install sudo or run this as root."
+    err "::: Por favor, instala sudo o ejecuta esto como root."
     exit 1
   fi
 fi
@@ -99,7 +99,7 @@ if [[ "$#" == 0 ]]; then
   helpFunc
 fi
 
-# Handle redirecting to specific functions based on arguments
+# Manejar la redirección a funciones específicas según los argumentos
 case "${1}" in
   "-a" | "add")
     makeOVPNFunc "$@"
