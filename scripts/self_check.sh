@@ -1,26 +1,26 @@
 #!/bin/bash
 
-### Constants
+### Constantes
 PLAT="$(grep -sEe '^NAME\=' /etc/os-release \
   | sed -E -e "s/NAME\=[\'\"]?([^ ]*).*/\1/")"
 
-# dual protocol, VPN type supplied as $1
+# protocolo dual, tipo de VPN suministrado como $1
 VPN="${1}"
 setupVars="/etc/pivpn/${VPN}/setupVars.conf"
 ERR=0
 
-### Functions
+### Funciones
 err() {
   echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $*" >&2
 }
 
 ### Script
 if [[ ! -f "${setupVars}" ]]; then
-  err "::: Missing setup vars file!"
+  err "::: ¡Falta el archivo de variables de configuración!"
   exit 1
 fi
 
-# SC1090 disabled as setupVars file differs from system to system
+# SC1090 deshabilitado ya que el archivo setupVars difiere de un sistema a otro
 # shellcheck disable=SC1090
 source "${setupVars}"
 
@@ -37,23 +37,23 @@ elif [[ "${VPN}" == "openvpn" ]]; then
 fi
 
 if [[ "$(< /proc/sys/net/ipv4/ip_forward)" -eq 1 ]]; then
-  echo ":: [OK] IP forwarding is enabled"
+  echo ":: [OK] El reenvío IP está habilitado"
 else
   ERR=1
   read -r \
-    -p ":: [ERR] IP forwarding is not enabled, attempt fix now? [Y/n] " \
+    -p ":: [ERR] El reenvío IP no está habilitado, ¿intentar solucionar ahora? [Y/n] " \
     REPLY
 
   if [[ "${REPLY}" =~ ^[Yy]$ ]] || [[ -z "${REPLY}" ]]; then
     sed -i '/net.ipv4.ip_forward=1/s/^#//g' /etc/sysctl.d/99-pivpn.conf
     sysctl -p
-    echo "Done"
+    echo "Hecho"
   fi
 fi
 
 if [[ "${USING_UFW}" -eq 0 ]]; then
-  # Disabled SC Warnings for SC2154, values
-  # for variables are sourced from setupVars
+  # Advertencias SC deshabilitadas para SC2154, los valores
+  # para las variables se obtienen de setupVars
   # shellcheck disable=SC2154
   if iptables \
     -t nat \
@@ -63,11 +63,11 @@ if [[ "${USING_UFW}" -eq 0 ]]; then
     -j MASQUERADE \
     -m comment \
     --comment "${VPN}-nat-rule" &> /dev/null; then
-    echo ":: [OK] Iptables MASQUERADE rule set"
+    echo ":: [OK] Regla MASQUERADE de Iptables establecida"
   else
     ERR=1
-    echo -n ":: [ERR] Iptables MASQUERADE rule is not set, "
-    echo -n "attempt fix now? [Y/n] "
+    echo -n ":: [ERR] La regla MASQUERADE de Iptables no está establecida, "
+    echo -n "¿intentar solucionar ahora? [Y/n] "
     read -r REPLY
 
     if [[ "${REPLY}" =~ ^[Yy]$ ]] || [[ -z "${REPLY}" ]]; then
@@ -81,13 +81,13 @@ if [[ "${USING_UFW}" -eq 0 ]]; then
         --comment "${VPN}-nat-rule"
 
       iptables-save > /etc/iptables/rules.v4
-      echo "Done"
+      echo "Hecho"
     fi
   fi
 
   if [[ "${INPUT_CHAIN_EDITED}" -eq 1 ]]; then
-    # Disabled SC Warnings for SC2154, values
-    # for variables are sourced from setupVars
+    # Advertencias SC deshabilitadas para SC2154, los valores
+    # para las variables se obtienen de setupVars
     # shellcheck disable=SC2154
     if iptables \
       -C INPUT \
@@ -97,11 +97,11 @@ if [[ "${USING_UFW}" -eq 0 ]]; then
       -j ACCEPT \
       -m comment \
       --comment "${VPN}-input-rule" &> /dev/null; then
-      echo ":: [OK] Iptables INPUT rule set"
+      echo ":: [OK] Regla INPUT de Iptables establecida"
     else
       ERR=1
       read -r \
-        -p ":: [ERR] Iptables INPUT rule is not set, attempt fix now? [Y/n] " \
+        -p ":: [ERR] La regla INPUT de Iptables no está establecida, ¿intentar solucionar ahora? [Y/n] " \
         REPLY
 
       if [[ "${REPLY}" =~ ^[Yy]$ ]] || [[ -z "${REPLY}" ]]; then
@@ -115,14 +115,14 @@ if [[ "${USING_UFW}" -eq 0 ]]; then
           --comment "${VPN}-input-rule"
 
         iptables-save > /etc/iptables/rules.v4
-        echo "Done"
+        echo "Hecho"
       fi
     fi
   fi
 
   if [[ "${FORWARD_CHAIN_EDITED}" -eq 1 ]]; then
-    # Disabled SC Warnings for SC2154, values
-    # for variables are sourced from setupVars
+    # Advertencias SC deshabilitadas para SC2154, los valores
+    # para las variables se obtienen de setupVars
     # shellcheck disable=SC2154
     if iptables \
       -C FORWARD \
@@ -132,11 +132,11 @@ if [[ "${USING_UFW}" -eq 0 ]]; then
       -j ACCEPT \
       -m comment \
       --comment "${VPN}-forward-rule" &> /dev/null; then
-      echo ":: [OK] Iptables FORWARD rule set"
+      echo ":: [OK] Regla FORWARD de Iptables establecida"
     else
       ERR=1
-      echo -n ":: [ERR] Iptables FORWARD rule is not set, "
-      echo -n "attempt fix now? [Y/n] "
+      echo -n ":: [ERR] La regla FORWARD de Iptables no está establecida, "
+      echo -n "¿intentar solucionar ahora? [Y/n] "
       read -r REPLY
 
       if [[ "${REPLY}" =~ ^[Yy]$ ]] || [[ -z "${REPLY}" ]]; then
@@ -161,17 +161,17 @@ if [[ "${USING_UFW}" -eq 0 ]]; then
           --comment "${VPN}-forward-rule"
 
         iptables-save > /etc/iptables/rules.v4
-        echo "Done"
+        echo "Hecho"
       fi
     fi
   fi
 else
   if LANG="en_US.UTF-8" ufw status | grep -qw 'active'; then
-    echo ":: [OK] Ufw is enabled"
+    echo ":: [OK] Ufw está habilitado"
   else
     ERR=1
-    echo -n ":: [ERR] Ufw is not enabled, "
-    echo -n "try to enable now? [Y/n] "
+    echo -n ":: [ERR] Ufw no está habilitado, "
+    echo -n "¿intentar habilitar ahora? [Y/n] "
     read -r REPLY
 
     if [[ "${REPLY}" =~ ^[Yy]$ ]] || [[ -z "${REPLY}" ]]; then
@@ -187,11 +187,11 @@ else
     -j MASQUERADE \
     -m comment \
     --comment "${VPN}-nat-rule" &> /dev/null; then
-    echo ":: [OK] Iptables MASQUERADE rule set"
+    echo ":: [OK] Regla MASQUERADE de Iptables establecida"
   else
     ERR=1
-    echo -n ":: [ERR] Iptables MASQUERADE rule is not set, "
-    echo -n "attempt fix now? [Y/n] "
+    echo -n ":: [ERR] La regla MASQUERADE de Iptables no está establecida, "
+    echo -n "¿intentar solucionar ahora? [Y/n] "
     read -r REPLY
 
     if [[ "${REPLY}" =~ ^[Yy]$ ]] || [[ -z "${REPLY}" ]]; then
@@ -207,7 +207,7 @@ else
 
       sed "${sed_pattern}" -i /etc/ufw/before.rules
       ufw reload
-      echo "Done"
+      echo "Hecho"
       unset sed_pattern
     fi
   fi
@@ -217,17 +217,17 @@ else
     -p "${pivpnPROTO}" \
     --dport "${pivpnPORT}" \
     -j ACCEPT &> /dev/null; then
-    echo ":: [OK] Ufw input rule set"
+    echo ":: [OK] Regla de entrada Ufw establecida"
   else
     ERR=1
     read -r \
-      -p ":: [ERR] Ufw input rule is not set, attempt fix now? [Y/n] " \
+      -p ":: [ERR] La regla de entrada Ufw no está establecida, ¿intentar solucionar ahora? [Y/n] " \
       REPLY
 
     if [[ "${REPLY}" =~ ^[Yy]$ ]] || [[ -z "${REPLY}" ]]; then
       ufw insert 1 allow "${pivpnPORT}"/"${pivpnPROTO}"
       ufw reload
-      echo "Done"
+      echo "Hecho"
     fi
   fi
 
@@ -237,18 +237,18 @@ else
     -o "${IPv4dev}" \
     -s "${pivpnNET}/${subnetClass}" \
     -j ACCEPT &> /dev/null; then
-    echo ":: [OK] Ufw forwarding rule set"
+    echo ":: [OK] Regla de reenvío Ufw establecida"
   else
     ERR=1
     read -r \
-      -p ":: [ERR] Ufw forwarding rule is not set, attempt fix now? [Y/n] " \
+      -p ":: [ERR] La regla de reenvío Ufw no está establecida, ¿intentar solucionar ahora? [Y/n] " \
       REPLY
 
     if [[ "${REPLY}" =~ ^[Yy]$ ]] || [[ -z "${REPLY}" ]]; then
       ufw route insert 1 allow in on "${pivpnDEV}" \
         from "${pivpnNET}/${subnetClass}" out on "${IPv4dev}" to any
       ufw reload
-      echo "Done"
+      echo "Hecho"
     fi
   fi
 fi
@@ -256,74 +256,74 @@ fi
 if [[ "${PLAT}" == 'Alpine' ]]; then
   if [[ "$(rc-service "${VPN_SERVICE}" status \
     | sed -E -e 's/.*status\: (.*)/\1/')" == 'started' ]]; then
-    echo ":: [OK] ${VPN_PRETTY_NAME} is running"
+    echo ":: [OK] ${VPN_PRETTY_NAME} se está ejecutando"
   else
     ERR=1
-    echo -n ":: [ERR] ${VPN_PRETTY_NAME} is not running, "
-    echo -n "try to start now? [Y/n] "
+    echo -n ":: [ERR] ${VPN_PRETTY_NAME} no se está ejecutando, "
+    echo -n "¿intentar iniciar ahora? [Y/n] "
     read -r REPLY
 
     if [[ "${REPLY}" =~ ^[Yy]$ ]] || [[ -z "${REPLY}" ]]; then
       rc-service -s "${VPN_SERVICE}" restart
       rc-service -N "${VPN_SERVICE}" start
-      echo "Done"
+      echo "Hecho"
     fi
   fi
 
   if rc-update show default \
     | grep -sEe "\s*${VPN_SERVICE} .*" &> /dev/null; then
-    echo -n ":: [OK] ${VPN_PRETTY_NAME} is enabled "
-    echo "(it will automatically start on reboot)"
+    echo -n ":: [OK] ${VPN_PRETTY_NAME} está habilitado "
+    echo "(se iniciará automáticamente al reiniciar)"
   else
     ERR=1
-    echo -n ":: [ERR] ${VPN_PRETTY_NAME} is not enabled, "
-    echo -n "try to enable now? [Y/n] "
+    echo -n ":: [ERR] ${VPN_PRETTY_NAME} no está habilitado, "
+    echo -n "¿intentar habilitar ahora? [Y/n] "
     read -r REPLY
 
     if [[ "${REPLY}" =~ ^[Yy]$ ]] || [[ -z "${REPLY}" ]]; then
       rc-update add "${VPN_SERVICE}" default
-      echo "Done"
+      echo "Hecho"
     fi
   fi
 else
   if systemctl is-active -q "${VPN_SERVICE}"; then
-    echo ":: [OK] ${VPN_PRETTY_NAME} is running"
+    echo ":: [OK] ${VPN_PRETTY_NAME} se está ejecutando"
   else
     ERR=1
-    echo -n ":: [ERR] ${VPN_PRETTY_NAME} is not running, "
-    echo -n "try to start now? [Y/n] "
+    echo -n ":: [ERR] ${VPN_PRETTY_NAME} no se está ejecutando, "
+    echo -n "¿intentar iniciar ahora? [Y/n] "
     read -r REPLY
 
     if [[ "${REPLY}" =~ ^[Yy]$ ]] || [[ -z "${REPLY}" ]]; then
       systemctl start "${VPN_SERVICE}"
-      echo "Done"
+      echo "Hecho"
     fi
   fi
 
   if systemctl is-enabled -q "${VPN_SERVICE}"; then
-    echo ":: [OK] ${VPN_PRETTY_NAME} is enabled "
-    echo "(it will automatically start on reboot)"
+    echo ":: [OK] ${VPN_PRETTY_NAME} está habilitado "
+    echo "(se iniciará automáticamente al reiniciar)"
   else
     ERR=1
-    echo -n ":: [ERR] ${VPN_PRETTY_NAME} is not enabled, "
-    echo -n "try to enable now? [Y/n] "
+    echo -n ":: [ERR] ${VPN_PRETTY_NAME} no está habilitado, "
+    echo -n "¿intentar habilitar ahora? [Y/n] "
     read -r REPLY
 
     if [[ "${REPLY}" =~ ^[Yy]$ ]] || [[ -z "${REPLY}" ]]; then
       systemctl enable "${VPN_SERVICE}"
-      echo "Done"
+      echo "Hecho"
     fi
   fi
 fi
 
-# grep -w (whole word) is used so port 11940 won't match when looking for 1194
+# Se usa grep -w (palabra completa) para que el puerto 11940 no coincida al buscar 1194
 if netstat -antu | grep -wqE "${pivpnPROTO}.*${pivpnPORT}"; then
-  echo -n ":: [OK] ${VPN_PRETTY_NAME} is listening "
-  echo "on port ${pivpnPORT}/${pivpnPROTO}"
+  echo -n ":: [OK] ${VPN_PRETTY_NAME} está escuchando "
+  echo "en el puerto ${pivpnPORT}/${pivpnPROTO}"
 else
   ERR=1
-  echo -n ":: [ERR] ${VPN_PRETTY_NAME} is not listening, "
-  echo -n "try to restart now? [Y/n] "
+  echo -n ":: [ERR] ${VPN_PRETTY_NAME} no está escuchando, "
+  echo -n "¿intentar reiniciar ahora? [Y/n] "
   read -r REPLY
 
   if [[ "${REPLY}" =~ ^[Yy]$ ]] || [[ -z "${REPLY}" ]]; then
@@ -334,10 +334,10 @@ else
       systemctl restart "${VPN_SERVICE}"
     fi
 
-    echo "Done"
+    echo "Hecho"
   fi
 fi
 
 if [[ "${ERR}" -eq 1 ]]; then
-  echo -e "[INFO] Run \e[1mpivpn -d\e[0m again to see if we detect issues"
+  echo -e "[INFO] Ejecuta \e[1mpivpn -d\e[0m de nuevo para ver si detectamos problemas"
 fi
