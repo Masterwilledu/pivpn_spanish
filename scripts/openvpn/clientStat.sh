@@ -8,7 +8,7 @@ err() {
 }
 
 scriptusage() {
-  echo "::: Para pasar al comando pivpn para cada protocolo"
+  echo "::: Lista los clientes conectados al servidor"
   echo ":::"
   echo "::: Uso: pivpn <-c|clients> [-b|bytes]"
   echo ":::"
