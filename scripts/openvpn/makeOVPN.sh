@@ -46,11 +46,11 @@ helpFunc() {
   echo -n ":::  -d,--days            El certificado caduca después del número "
   echo "de días especificado (predeterminado: 1080)
   echo "number of days (default: 1080)"
-  echo ":::  -b,--bitwarden       Create and save a client through Bitwarden"
-  echo -n ":::  -i,--iOS             Generate a certificate that leverages iOS "
+  echo ":::  -b,--bitwarden       Crea y guarda un cliente a través de Bitwarden"
+  echo -n ":::  -i,--iOS             Genera un certificado compatible con iOS "
   echo "keychain"
-  echo -n ":::  -o,--ovpn            Regenerate a .ovpn config file for an "
-  echo "existing client"
+  echo -n ":::  -o,--ovpn            Regenera un archivo de configuración .ovpn para un "
+  echo "cliente existente"
   echo ":::  -h,--help            Show this help dialog"
 }
 
