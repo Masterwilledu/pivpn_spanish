@@ -1,50 +1,50 @@
 #!/bin/bash
 #shellcheck disable=SC2317
-### Updates pivpn scripts (Not PiVPN)
-# TODO: Delete this section when the updating functionality will be re-enabled
+### Actualiza los scripts de pivpn (No PiVPN)
+# Por Realizar: Eliminar esta sección cuando la funcionalidad de actualización se vuelva a habilitar
 ###
 err() {
   echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $*" >&2
 }
 
-err "::: The updating functionality for PiVPN scripts is temporarily disabled"
-err "::: To keep the VPN (and the system) up to date, use:"
+err "::: La funcionalidad de actualización de los scripts de PiVPN está temporalmente deshabilitada"
+err "::: Para mantener la VPN (y el sistema) actualizados, usa:"
 err "        apt update; apt upgrade"
 exit 0
-### END SECTION ###
+### FIN DE LA SECCIÓN ###
 
-### Constants
+### Constantes
 pivpnrepo="https://github.com/pivpn/pivpn.git"
 pivpnlocalpath="/etc/.pivpn"
 pivpnscripts="/opt/pivpn/"
 bashcompletiondir="/etc/bash_completion.d/"
 
-# Find the rows and columns. Will default to 80x24 if it can not be detected.
+# Encuentra las filas y columnas. Por defecto será 80x24 si no se pueden detectar.
 screen_size="$(stty size 2> /dev/null || echo 24 80)"
 rows="$(echo "${screen_size}" | awk '{print $1}')"
 columns="$(echo "${screen_size}" | awk '{print $2}')"
 
-# Divide by two so the dialogs take up half of the screen, which looks nice.
+# Divide por dos para que los cuadros de diálogo ocupen la mitad de la pantalla, lo cual se ve bien.
 r=$((rows / 2))
 c=$((columns / 2))
-# Unless the screen is tiny
+# A menos que la pantalla sea minúscula
 r=$((r < 20 ? 20 : r))
 c=$((c < 70 ? 70 : c))
 
 chooseVPNCmd=(whiptail
-  --backtitle "Setup PiVPN"
-  --title "Installation mode"
+  --backtitle "Configuración de PiVPN"
+  --title "Modo de instalación"
   --separate-output
-  --radiolist "Choose a VPN to update (press space to select):"
+  --radiolist "Elige una VPN para actualizar (presiona espacio para seleccionar):"
   "${r}" "${c}" 2)
 VPNChooseOptions=(WireGuard "" on
   OpenVPN "" off)
 
 if VPN="$("${chooseVPNCmd[@]}" "${VPNChooseOptions[@]}" 2>&1 > /dev/tty)"; then
-  echo "::: Using VPN: ${VPN}"
+  echo "::: Usando VPN: ${VPN}"
   VPN="${VPN,,}"
 else
-  err "::: Cancel selected, exiting...."
+  err "::: Cancelar seleccionado, saliendo...."
   exit 1
 fi
 
@@ -53,33 +53,33 @@ setupVars="/etc/pivpn/${VPN}/setupVars.conf"
 # shellcheck disable=SC1090
 source "${setupVars}"
 
-### Functions
-# TODO: Uncomment this function when the updating functionality
-# will be re-enabled
+### Funciones
+# TODO: Descomentar esta función cuando la funcionalidad de actualización
+# se vuelva a habilitar
 #err() {
 #  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $*" >&2
 #}
 
 scriptusage() {
-  echo "::: Updates PiVPN scripts"
+  echo "::: Actualiza los scripts de PiVPN"
   echo ":::"
-  echo "::: Usage: pivpn <-up|update> [-t|--test]"
+  echo "::: Uso: pivpn <-up|update> [-t|--test]"
   echo ":::"
-  echo "::: Commands:"
-  echo ":::  [none]              Updates from master branch"
-  echo ":::  -t, test            Updates from test branch"
-  echo ":::  -h, help            Show this usage dialog"
+  echo "::: Comandos:"
+  echo ":::  [ninguno]           Actualiza desde la rama master"
+  echo ":::  -t, test            Actualiza desde la rama test"
+  echo ":::  -h, help            Muestra este diálogo de uso"
 }
 
 updatepivpnscripts() {
   local branch
   branch="${1}"
-  ## We don't know what sort of changes users have made.
-  ## Lets remove first /etc/.pivpn dir then clone it back again
-  echo -n "Going do update PiVPN Scripts"
+  ## No sabemos qué tipo de cambios han hecho los usuarios.
+  ## Vamos a eliminar primero el directorio /etc/.pivpn y luego a clonarlo de nuevo
+  echo -n "Procediendo a actualizar los scripts de PiVPN"
 
   if [[ -z "${branch}" ]]; then
-    echo "from ${branch} branch"
+    echo " desde la rama ${branch}"
   else
     echo
   fi
@@ -90,16 +90,16 @@ updatepivpnscripts() {
   fi
 
   cloneandupdate "${branch}"
-  echo -n "PiVPN Scripts have been updated"
+  echo -n "Los scripts de PiVPN se han actualizado"
 
   if [[ -z "${branch}" ]]; then
-    echo "from ${branch} branch"
+    echo " desde la rama ${branch}"
   else
     echo
   fi
 }
 
-## Clone and copy pivpn scripts to /opt/pivpn
+## Clonar y copiar los scripts de pivpn a /opt/pivpn
 cloneandupdate() {
   local branch
   branch="${1}"
@@ -121,7 +121,7 @@ cloneandupdate() {
 
 ## SCRIPT
 if [[ ! -f "${setupVars}" ]]; then
-  err "::: Missing setup vars file!"
+  err "::: ¡Falta el archivo de variables de configuración!"
   exit 1
 fi
 
