@@ -1,5 +1,5 @@
 #!/bin/bash
-# PiVPN: client status script
+# PiVPN: script de estado de clientes
 
 STATUS_LOG="/var/log/openvpn-status.log"
 
@@ -23,10 +23,10 @@ hr() {
 }
 
 listClients() {
-  printf ": NOTE : The output below is NOT real-time!\n"
-  printf ":      : It may be off by a few minutes.\n"
+  printf ": NOTA: La salida que se muestra a continuación NO es en tiempo real!\n"
+  printf ":      : Puede tener un desfase de unos minutos.\n"
   printf "\n"
-  printf "\e[1m::: Client Status List :::\e[0m\n"
+  printf "\e[1m::: Lista de Estado de Clientes :::\e[0m\n"
 
   {
     printf "\e[4mName\e[0m  \t  \e[4mRemote IP\e[0m  \t  "
