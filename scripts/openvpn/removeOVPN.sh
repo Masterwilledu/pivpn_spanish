@@ -21,7 +21,7 @@ err() {
 }
 
 helpFunc() {
-  echo "::: Revocar un perfil ovpn de cliente"
+  echo "::: Revocar un perfil OpenVPN de cliente"
   echo ":::"
   echo -n "::: Uso: pivpn <-r|revoke> [-y|--yes] [-h|--help] "
   echo "[<cliente-1> ... [<cliente-2>] ...]"
