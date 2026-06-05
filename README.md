@@ -44,7 +44,7 @@ Antes de proceder con la instalación, asegúrate de que tu sistema cumpla con l
 *   **Acceso Root:** Es necesario contar con privilegios de administrador (`sudo`).
 *   **Red Estable:** Una conexión a internet activa para descargar los paquetes necesarios.
 *   **IP Estática:** Se recomienda encarecidamente configurar una dirección IP local estática o reservada (reservada en DHCP) para tu servidor antes de empezar.
-*   **Puerto Abierto (Enrutador):** Necesitarás acceso a tu router para redirigir el puerto de la VPN (típicamente el puerto UDP `51820` para WireGuard o UDP `1194` para OpenVPN).
+*   **Puerto Abierto (Enrutador):** Necesitarás acceso a tu enrutador para redirigir el trafico entrante del puerto de la VPN (típicamente el puerto UDP `51820` para WireGuard o UDP `1194` para OpenVPN) hacia la IP local de Servidor VPN.
 *   **IP pública accesible:** Es ideal que tu enrutador tenga una IP Fija Publica. Si tu IP pública es dinámica (es decir cambia seguido), necesitarás configurar un servicio de DNS Dinámico (DDNS) como [DuckDNS](https://www.duckdns.org) o [No-IP](https://www.noip.com), el cual PiVPN te permite integrar durante la instalación.
 
 ----
