@@ -17,18 +17,18 @@ if [ "${metadata_type}" != "0" ]; then
 fi
 
 if ! metadata="$(head -c 22 "${metadata_file}")"; then
-    echo "Unable to read metadata, rejecting..."
+    echo "No se pudieron leer los metadatos, rechazando..."
     exit 1
 fi
 
 if [ "${#metadata}" -lt 22 ]; then
-    # Shouldn't be possible with our configuration
-    echo "Metadata shorter than 22 characters, rejecting..."
+    # No debería ser posible con nuestra configuración
+    echo "Metadatos menores de 22 caracteres, rechazando..."
     exit 1
 fi
 
 if grep -q ' '"${metadata}"'$' "${TC_V2_METADATA}"; then
-    # Allowed to continue authentication
+    # Se permite continuar la autenticación
     exit 0
 else
     # Rejected
