@@ -1,8 +1,8 @@
 #!/bin/bash
-# PiVPN: verify tls-crypt-v2 metadata agains allowlist
+# PiVPN: verificar los metadatos de tls-crypt-v2 con la lista de permitidos
 # shellcheck disable=SC2154
 
-### Constants
+### Constantes
 TC_V2_METADATA="/etc/pivpn/openvpn/tc-v2-metadata.txt"
 
 if [ "${script_type}" != "tls-crypt-v2-verify" ]; then
@@ -11,8 +11,8 @@ if [ "${script_type}" != "tls-crypt-v2-verify" ]; then
 fi
 
 if [ "${metadata_type}" != "0" ]; then
-    # Shouldn't be possible with our configuration
-    echo "Metadata is not user-supplied, rejecting..."
+    # No debería ser posible con nuestra configuración
+    echo "Los metadatos no son proporcionados por el usuario, rechazando..."
     exit 1
 fi
 
