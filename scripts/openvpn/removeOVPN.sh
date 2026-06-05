@@ -1,7 +1,7 @@
 #!/bin/bash
-# PiVPN: revoke client script
+# PiVPN: script para revocar cliente
 
-### Constants
+### Constantes
 setupVars="/etc/pivpn/openvpn/setupVars.conf"
 INDEX="/etc/openvpn/easy-rsa/pki/index.txt"
 TC_V2_METADATA="/etc/pivpn/openvpn/tc-v2-metadata.txt"
@@ -15,31 +15,31 @@ fi
 # shellcheck disable=SC1091
 source /opt/pivpn/ipaddr_utils.sh
 
-### Functions
+### Funciones
 err() {
   echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $*" >&2
 }
 
 helpFunc() {
-  echo "::: Revoke a client ovpn profile"
+  echo "::: Revocar un perfil ovpn de cliente"
   echo ":::"
-  echo -n "::: Usage: pivpn <-r|revoke> [-y|--yes] [-h|--help] "
-  echo "[<client-1> ... [<client-2>] ...]"
+  echo -n "::: Uso: pivpn <-r|revoke> [-y|--yes] [-h|--help] "
+  echo "[<cliente-1> ... [<cliente-2>] ...]"
   echo ":::"
-  echo "::: Commands:"
-  echo ":::  [none]               Interactive mode"
-  echo ":::  <client>             Client(s) to to revoke"
-  echo ":::  -y,--yes             Remove Client(s) without confirmation"
-  echo ":::  -h,--help            Show this help dialog"
+  echo "::: Comandos:"
+  echo ":::  [ninguno]            Modo interactivo"
+  echo ":::  <cliente>            Cliente(s) a revocar"
+  echo ":::  -y,--yes             Eliminar Cliente(s) sin confirmación"
+  echo ":::  -h,--help            Mostrar este diálogo de ayuda"
 }
 
 ### Script
 if [[ ! -f "${setupVars}" ]]; then
-  err "::: Missing setup vars file!"
+  err "::: ¡Falta el archivo de variables de configuración!"
   exit 1
 fi
 
-# Parse input arguments
+# Analizar argumentos de entrada
 while [[ "$#" -gt 0 ]]; do
   _key="${1}"
 
@@ -60,32 +60,32 @@ while [[ "$#" -gt 0 ]]; do
 done
 
 if [[ ! -f "${INDEX}" ]]; then
-  err "The file: ${INDEX} was not found"
+  err "No se encontró el archivo: ${INDEX}"
   exit 1
 fi
 
 if [[ "${TWO_POINT_FIVE}" -eq 1 ]] && [[ ! -f "${TC_V2_METADATA}" ]]; then
-  err "The file: ${TC_V2_METADATA} was not found"
+  err "No se encontró el archivo: ${TC_V2_METADATA}"
   exit 1
 fi
 
-# Disabling SC2128, just checking if variable is empty or not
+# Deshabilitando SC2128, solo se verifica si la variable está vacía o no
 # shellcheck disable=SC2128
 if [[ -z "${CERTS_TO_REVOKE}" ]]; then
   printf "\n"
-  printf " ::\e[4m  Certificate List  \e[0m:: \n"
+  printf " ::\e[4m  Lista de Certificados  \e[0m:: \n"
 
   i=0
   while read -r line || [[ -n "${line}" ]]; do
     STATUS=$(echo "${line}" | awk '{print $1}')
 
     if [[ "${STATUS}" == "V" ]]; then
-      # Disabling SC2001 warning, suggested method doesn't work with regexp
+      # Deshabilitando advertencia SC2001, el método sugerido no funciona con expresiones regulares
       # shellcheck disable=SC2001
       NAME=$(echo "${line}" | sed -e 's:.*/CN=::')
 
       if [[ "${i}" != 0 ]]; then
-        # Prevent printing "server" certificate
+        # Evitar imprimir el certificado del "servidor"
         CERTS["${i}"]=$(echo -e "${NAME}")
       fi
 
@@ -101,12 +101,12 @@ if [[ -z "${CERTS_TO_REVOKE}" ]]; then
   done
 
   printf "\n"
-  echo -n "::: Please enter the Index/Name of the client to be revoked "
-  echo -n "from the list above: "
+  echo -n "::: Por favor, introduce el Índice/Nombre del cliente a revocar "
+  echo -n "de la lista de arriba: "
   read -r NAME
 
   if [[ -z "${NAME}" ]]; then
-    err "You can not leave this blank!"
+    err "¡No puedes dejar esto en blanco!"
     exit 1
   fi
 
@@ -122,7 +122,7 @@ if [[ -z "${CERTS_TO_REVOKE}" ]]; then
   done
 
   if [[ -z "${VALID}" ]]; then
-    err "You didn't enter a valid cert name!"
+    err "¡No introdujiste un nombre de certificado válido!"
     exit 1
   fi
 
@@ -149,7 +149,7 @@ else
     done
 
     if [[ "${VALID}" != 1 ]]; then
-      err "You passed an invalid cert name: '${CERTS_TO_REVOKE[ii]}'!"
+      err "¡Pasaste un nombre de certificado inválido: '${CERTS_TO_REVOKE[ii]}'!"
       exit 1
     fi
   done
@@ -161,54 +161,54 @@ for ((ii = 0; ii < ${#CERTS_TO_REVOKE[@]}; ii++)); do
   if [[ -n "${CONFIRM}" ]]; then
     REPLY="y"
   else
-    read -r -p "Do you really want to revoke '${CERTS_TO_REVOKE[ii]}'? [y/N] "
+    read -r -p "¿Realmente quieres revocar '${CERTS_TO_REVOKE[ii]}'? [y/N] "
   fi
 
   if [[ "${REPLY}" =~ ^[Yy]$ ]]; then
-    printf "\n::: Revoking certificate '%s'. \n" "${CERTS_TO_REVOKE[ii]}"
+    printf "\n::: Revocando certificado '%s'. \n" "${CERTS_TO_REVOKE[ii]}"
 
     ./easyrsa --batch revoke "${CERTS_TO_REVOKE[ii]}"
     ./easyrsa gen-crl
 
-    printf "\n::: Certificate revoked, and CRL file updated.\n"
-    printf "::: Removing certs and client configuration for this profile.\n"
+    printf "\n::: Certificado revocado y archivo CRL actualizado.\n"
+    printf "::: Eliminando certificados y configuración de cliente para este perfil.\n"
 
     rm -rf "pki/reqs/${CERTS_TO_REVOKE[ii]}.req"
     rm -rf "pki/private/${CERTS_TO_REVOKE[ii]}.key"
     rm -rf "pki/issued/${CERTS_TO_REVOKE[ii]}.crt"
 
-    # Disabling SC2154 $pivpnNET sourced externally
+    # Deshabilitando SC2154 $pivpnNET obtenido externamente
     # shellcheck disable=SC2154
-    # Grab the client IP address
+    # Obtener la dirección IP del cliente
     STATIC_IP="$(grep -v "^#" /etc/openvpn/ccd/"${CERTS_TO_REVOKE[ii]}" \
       | grep -w ifconfig-push | awk '{print $2}')"
     rm -rf /etc/openvpn/ccd/"${CERTS_TO_REVOKE[ii]}"
 
-    # disabling warning SC2154, $install_home sourced externally
+    # deshabilitando advertencia SC2154, $install_home obtenido externamente
     # shellcheck disable=SC2154
     rm -rf "${install_home}/ovpns/${CERTS_TO_REVOKE[ii]}.ovpn"
     rm -rf "/etc/openvpn/easy-rsa/pki/${CERTS_TO_REVOKE[ii]}.ovpn"
     cp -a /etc/openvpn/easy-rsa/pki/crl.pem /etc/openvpn/crl.pem
 
     if [[ "${TWO_POINT_FIVE}" -eq 1 ]]; then
-      # Delete client metadata to block authentication at the tls-crypt level
+      # Eliminar metadatos del cliente para bloquear la autenticación a nivel de tls-crypt
       sed '/^'"${CERTS_TO_REVOKE[ii]}"' /d' -i "${TC_V2_METADATA}"
       rm -f "/etc/openvpn/easy-rsa/pki/tc-v2/${CERTS_TO_REVOKE[ii]}.key"
     fi
 
-    # If using Pi-hole, remove the client from the hosts file
+    # Si se usa Pi-hole, eliminar al cliente del archivo hosts
     if [[ -f /etc/pivpn/hosts.openvpn ]]; then
       sed \
         -e "\#${STATIC_IP} ${CERTS_TO_REVOKE[ii]}.pivpn#d" \
         -i /etc/pivpn/hosts.openvpn
 
       if killall -SIGHUP pihole-FTL; then
-        echo "::: Updated hosts file for Pi-hole"
+        echo "::: Archivo hosts actualizado para Pi-hole"
       else
-        err "::: Failed to reload pihole-FTL configuration"
+        err "::: Falló al recargar la configuración de pihole-FTL"
       fi
     fi
   fi
 done
 
-printf "::: Completed!\n"
+printf "::: ¡Completado!\n"
