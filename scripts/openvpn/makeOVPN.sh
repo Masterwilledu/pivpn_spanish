@@ -50,7 +50,7 @@ helpFunc() {
   echo "keychain"
   echo -n ":::  -o,--ovpn            Regenera un archivo de configuración .ovpn para un "
   echo "cliente existente"
-  echo ":::  -h,--help            Show this help dialog"
+  echo ":::  -h,--help            Muestra este diálogo de uso"
 }
 
 checkName() {
