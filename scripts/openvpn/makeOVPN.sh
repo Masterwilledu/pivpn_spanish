@@ -33,7 +33,7 @@ err() {
 helpFunc() {
   echo "::: Create a client ovpn profile, optional nopass"
   echo ":::"
-  echo -n "::: Uso:   pivpn <-a|add> [-n|--name <arg>] "
+  echo -n "::: Uso: pivpn <-a|add> [-n|--name <arg>] "
   echo -n "[-p|--password <arg>]|[nopass] [-d|--days <number>] "
   echo "[-b|--bitwarden] [-i|--iOS] [-o|--ovpn] [-h|--help]"
   echo ":::"
