@@ -30,8 +30,8 @@ listClients() {
 
   {
     printf "\e[4mNombre\e[0m  \t  \e[4mIP Remota\e[0m  \t  "
-    printf "\e[4mIP Virtual\e[0m  \t  \e[4mBytes Recividos\e[0m  \t  "
-    printf "\e[4mBytes Enviados\e[0m  \t  \e[4mConectado desde\e[0m\n"
+    printf "\e[4mIP Virtual\e[0m  \t  \e[4mBytes Recibidos\e[0m  \t  "
+    printf "\e[4mBytes Enviados\e[0m  \t  \e[4mConectado Desde\e[0m\n"
 
     if grep -q "^CLIENT_LIST" "${STATUS_LOG}"; then
       if [[ -n "$(type -t numfmt)" ]]; then
