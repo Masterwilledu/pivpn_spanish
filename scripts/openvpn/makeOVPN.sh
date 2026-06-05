@@ -1,7 +1,7 @@
 #!/bin/bash
-# Create OVPN Client
+# Crear cliente OpenVPN
 
-### Constants
+### Constantes
 setupVars="/etc/pivpn/openvpn/setupVars.conf"
 DEFAULT="Default.txt"
 FILEEXT=".ovpn"
@@ -25,7 +25,7 @@ source /opt/pivpn/ipaddr_utils.sh
 # shellcheck disable=SC2154
 userGroup="${install_user}:${install_user}"
 
-## Functions
+## Funciones
 err() {
   echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $*" >&2
 }
