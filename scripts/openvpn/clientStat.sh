@@ -8,7 +8,7 @@ err() {
 }
 
 scriptusage() {
-  echo "::: Lista cualquier cliente conectado al servidor VPN"
+  echo "::: Lista cualquier cliente conectado al servidor"
   echo ":::"
   echo "::: Uso: pivpn <-c|clients> [-b|bytes]"
   echo ":::"
@@ -29,9 +29,9 @@ listClients() {
   printf "\e[1m::: Lista de Estado de Clientes :::\e[0m\n"
 
   {
-    printf "\e[4mName\e[0m  \t  \e[4mRemote IP\e[0m  \t  "
-    printf "\e[4mVirtual IP\e[0m  \t  \e[4mBytes Received\e[0m  \t  "
-    printf "\e[4mBytes Sent\e[0m  \t  \e[4mConnected Since\e[0m\n"
+    printf "\e[4mNombre\e[0m  \t  \e[4mIP Remota\e[0m  \t  "
+    printf "\e[4mIP Virtual\e[0m  \t  \e[4mBytes Recividos\e[0m  \t  "
+    printf "\e[4mBytes Enviados\e[0m  \t  \e[4mConectado desde\e[0m\n"
 
     if grep -q "^CLIENT_LIST" "${STATUS_LOG}"; then
       if [[ -n "$(type -t numfmt)" ]]; then
