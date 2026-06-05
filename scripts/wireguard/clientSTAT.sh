@@ -10,7 +10,7 @@ err() {
 }
 
 scriptusage() {
-  echo "::: Lista cualquier cliente conectado al servidor VPN"
+  echo "::: Lista cualquier cliente conectado al servidor"
   echo ":::"
   echo "::: Uso: pivpn <-c|clients> [-b|bytes]"
   echo ":::"
