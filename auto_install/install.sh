@@ -4,9 +4,9 @@
 # https://pivpn.io
 # Fuertemente adaptado del proyecto pi-hole.net y...
 # https://github.com/StarshipEngineer/OpenVPN-Setup/
-#
+export LANG=en_US.UTF-8
 # Instala con este comando (desde tu Pi):
-#
+export LC_ALL=en_US.UTF-8
 # curl -sSfL https://install.pivpn.io | bash
 # Asegúrate de tener `curl` instalado
 
