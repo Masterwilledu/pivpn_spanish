@@ -420,7 +420,7 @@ https://github.com/pivpn/pivpn/wiki" "${r}" "${c}"
 maybeOSSupport() {
   if [[ "${runUnattended}" == 'true' ]]; then
     echo "::: Sistema Operativo no compatible"
-    echo -n "::: Estás en un Sistema Operativo que no hemos probado pero PODRIA funcionar, "
+    echo -n "::: Estás en un S.O que no hemos probado pero podría funcionar, "
     echo "continuando de todos modos..."
     return
   fi
@@ -428,9 +428,9 @@ maybeOSSupport() {
   if whiptail \
     --backtitle "Sistema Operativo No Probado" \
     --title "Sistema Operativo No Probado" \
-    --yesno "Estás en un Sistema Operativo que no hemos probado pero PODRÍA funcionar.
+    --yesno "Estás en un S.O que no hemos probado pero podría funcionar.
 Actualmente este instalador soporta Raspbian, Debian y Ubuntu.
-Para más detalles sobre los Sistema Operativo compatibles por favor consulta nuestra documentación \
+Para más detalles sobre los S.O. compatibles consulta nuestra documentación \
 at https://github.com/pivpn/pivpn/wiki
 ¿Te gustaría continuar de todos modos?" "${r}" "${c}"; then
     echo "::: No se detectó un Sistema Operativo perfectamente compatible pero,"
