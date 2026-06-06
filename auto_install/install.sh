@@ -3369,8 +3369,7 @@ y la clave HMAC." \
   # En Alpine Linux, el archivo de configuración predeterminado para OpenVPN es
   # "/etc/openvpn/openvpn.conf".
   # Para evitar bloqueos a través de OpenRC, creamos un enlace simbólico a este archivo.
-  if [[ "${PLAT}" == 'Alpine' ]];
-  then
+  if [[ "${PLAT}" == 'Alpine' ]]; then
     ${SUDO} ln -sfT \
       /etc/openvpn/server.conf \
       /etc/openvpn/openvpn.conf \
