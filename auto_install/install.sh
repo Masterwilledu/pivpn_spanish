@@ -1929,8 +1929,7 @@ generateRandomSubnet() {
 
     done
 
-    if !
-    "$overlap"; then
+    if ! "$overlap"; then
       decIPv4ToDot "$first_ip_subnet_dec"
       break
     fi
