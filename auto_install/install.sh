@@ -854,8 +854,7 @@ welcomeDialogs() {
     --title "IP Local Estática Necesaria" --ok-button "Aceptar" \
     --msgbox "--msgbox "PiVPN crea un Servidor VPN. Si la dirección IP local de tu servidor VPN cambia, el enrutador redirigirá el tráfico a un destino vacío y tu VPN no funcionará adecuadamente. Una IP local estática evita que esto pase.
 
-En la siguiente sección, puedes elegir usar la configuración de red actual \
-(DHCP) o editarla manualmente." "${r}" "${c}"
+En la siguiente sección, puedes elegir usar la configuración de red actual (DHCP) o editarla manualmente." "${r}" "${c}"
 }
 
 
