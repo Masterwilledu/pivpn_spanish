@@ -1047,9 +1047,9 @@ staticIpNotSupported() {
     --title "Información de IP" \
     --msgbox "Dado que creemos que no estás usando Raspberry Pi OS, no \
 configuraremos una IP estática por ti.
-Si estás en Amazon, de todos modos no puedes configurar una IP estática. Solo \
-asegúrate de haber configurado una IP elástica en tu instancia antes de iniciar \
-este instalador." "${r}" "${c}"
+Si estás en Amazon Web Services, no puedes configurar una IP estática. Solo asegúrate \
+de haber configurado una IP Elástica (IPv4 pública y estática) en tu instancia antes \
+de iniciar este instalador." "${r}" "${c}"
 }
 
 validIP() {
