@@ -323,7 +323,7 @@ askAboutExistingInstall() {
   opt3b="Reinstalar PiVPN con nueva configuración"
 
   UpdateCmd="$(whiptail \
-    --title "¡Instalación existente detectada!" \
+    ---title "¡Instalación existente detectada!" --ok-button "Aceptar" --cancel-button "Cancelar" \
     --menu "
 Hemos detectado una instalación existente.
 ${1}
