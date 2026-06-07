@@ -2449,7 +2449,7 @@ askClientDNS() {
         --backtitle "Configurar PiVPN" \
         --title "Pi-hole" \
         --yesno "Hemos detectado una instalación de Pi-hole, \
-¿quieres usarlo como servidor DNS para la VPN, para que \
+¿Quieres usarlo como servidor DNS para la VPN, para que \
 obtengas bloqueo de anuncios sobre la marcha?" "${r}" "${c}"; then
       setupPiholeDNS
       return
@@ -2476,6 +2476,7 @@ En caso de que tengas un resolutor local en ejecución, p. ej. unbound, seleccio
     FamilyShield "" off
     CloudFlare "" off
     Google "" off
+	AdGuard "" off
     PiVPN-is-local-DNS "" off
     Custom "" off)
 
@@ -2492,6 +2493,7 @@ En caso de que tengas un resolutor local en ejecución, p. ej. unbound, seleccio
         ["FamilyShield"]="208.67.222.123 208.67.220.123"
         ["CloudFlare"]="1.1.1.1 1.0.0.1"
         ["Google"]="8.8.8.8 8.8.4.4"
+		["AdGuard"]="94.140.14.14 94.140.15.15"
         ["PiVPN-is-local-DNS"]="${vpnGw}")
       pivpnDNS1=$(awk '{print $1}' <<< "${DNS_MAP["${DNSchoices}"]}")
       pivpnDNS2=$(awk '{print $2}' <<< "${DNS_MAP["${DNSchoices}"]}")
