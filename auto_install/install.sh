@@ -431,8 +431,7 @@ maybeOSSupport() {
     --yesno "Estás en un Sistema Operativo que no hemos probado, pero aún
 PODRÍA funcionar. Actualmente este instalador soporta Raspberry Pi OS, Debian y Ubuntu.
 
-Para más detalles sobre los Sistemas Operativos compatibles \
-consulta nuestra documentación en https://github.com/pivpn/pivpn/wiki
+Para más detalles sobre los Sistemas Operativos compatibles consulta nuestra documentación en https://github.com/pivpn/pivpn/wiki
 
 ¿Te gustaría continuar de todos modos?" "${r}" "${c}"; then
     echo "::: No se detectó un Sistema Operativo perfectamente compatible pero"
