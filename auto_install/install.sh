@@ -409,13 +409,13 @@ noOSSupport() {
 
   whiptail \
     --backtitle "SISTEMA OPERATIVO NO VÁLIDO DETECTADO" \
-    --title "Sistema Operativo no válido" --ok-button "Aceptar" \
-    --msgbox "No hemos podido detectar un Sistema Operativo compatible.
-Actualmente este instalador soporta RaspberryPi OS, Debian y Ubuntu.
-Para más detalles, consulta nuestra documentación en \
-https://github.com/pivpn/pivpn/wiki" "${r}" "${c}"
+    --title "Sistema Operativo no válido" --ok-button "Aceptar" --scrolltext \
+    --msgbox "No hemos podido detectar un Sistema Operativo compatible. Actualmente este instalador soporta RaspberryPi OS, Debian y Ubuntu.
+
+Para más detalles, consulta nuestra documentación en https://github.com/pivpn/pivpn/wiki" "${r}" "${c}"
   exit 1
 }
+
 
 maybeOSSupport() {
   if [[ "${runUnattended}" == 'true' ]]; then
