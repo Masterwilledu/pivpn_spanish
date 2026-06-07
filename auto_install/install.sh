@@ -1479,7 +1479,7 @@ chooseUser() {
   if [[ "${numUsers}" -eq 0 ]]; then
     # No tenemos un usuario, vamos a pedir añadir uno.
     if userToAdd="$(whiptail \
-      --title "Elegir un usuario" \
+      --title "Elegir un usuario local del S.O." --ok-button "Aceptar" --cancel-button "Cancelar" \
       --inputbox \
       "No se encontró ninguna cuenta de usuario que no sea root. Escribe un nombre de usuario." \
       "${r}" \
@@ -2332,7 +2332,7 @@ el predeterminado" "${r}" "${c}" "${DEFAULT_PORT}" \
     if [[ "${pivpnPORT}" == "${portInvalid}" ]]; then
       whiptail \
         --backtitle "Puerto inválido" \
-        --title "Puerto inválido" \
+        --title "Puerto inválido" --ok-button "Aceptar" \
         --msgbox "Has introducido un número de puerto inválido.
     Por favor, introduce un número entre 1 - 65535.
     Si no estás seguro, simplemente mantén el predeterminado." "${r}" "${c}"
@@ -2531,7 +2531,7 @@ Por ejemplo '1.1.1.1, 9.9.9.9'" "${r}" "${c}" "" \
           || [[ "${pivpnDNS2}" == "${strInvalid}" ]]; then
           whiptail \
             --backtitle "IP Inválida" \
-            --title "IP Inválida" \
+            --title "IP Inválida" --ok-button "Aceptar" \
             --msgbox "Una o ambas direcciones IP eran inválidas. \
 Por favor, inténtalo de nuevo.
     Servidor DNS 1: ${pivpnDNS1}
@@ -2638,7 +2638,7 @@ Formato: midominio.com" "${r}" "${c}" \
         else
           whiptail \
             --backtitle "Dominio Inválido" \
-            --title "Dominio Inválido" \
+            --title "Dominio Inválido" --ok-button "Aceptar" \
             --msgbox "El dominio es inválido. Por favor, inténtalo de nuevo.
     DOMINIO:  ${pivpnSEARCHDOMAIN}
 " "${r}" "${c}"
@@ -2712,7 +2712,7 @@ DNS público de este Servidor?" "${r}" "${c}" \
             else
               whiptail \
                 --backtitle "Configuración de PiVPN" \
-                --title "Nombre DNS inválido" \
+                --title "Nombre DNS inválido" --ok-button "Aceptar" \
                 --msgbox "Este nombre DNS es inválido. Por favor inténtalo de nuevo.
     Nombre DNS: ${PUBLICDNS}
 " "${r}" "${c}"
@@ -3003,7 +3003,7 @@ y la clave HMAC se generarán ahora."
       whiptail \
         --msgbox \
         --backtitle "Configurar OpenVPN" \
-        --title "Información del Servidor" \
+        --title "Información del Servidor" --ok-button "Aceptar" \
         "La clave del servidor, los parámetros Diffie-Hellman, \
 y la clave HMAC se generarán ahora." \
         "${r}" \
@@ -3017,7 +3017,7 @@ y la clave HMAC se generarán ahora." \
       whiptail \
         --msgbox \
         --backtitle "Configurar OpenVPN" \
-        --title "Información del Servidor" \
+        --title "Información del Servidor" --ok-button "Aceptar" \
         "La clave del servidor y la clave HMAC se generarán ahora." \
         "${r}" \
         "${c}"
@@ -3260,7 +3260,7 @@ confWireGuard() {
     echo "::: Se generarán ahora las claves del servidor."
   else
     whiptail \
-      --title "Información del Servidor" \
+      --title "Información del Servidor" --ok-button "Aceptar" \
       --msgbox "Se generarán ahora las claves del servidor." \
       "${r}" \
       "${c}"
@@ -3696,8 +3696,8 @@ askUnattendedUpgrades() {
   whiptail \
     --msgbox \
     --backtitle "Actualizaciones de Seguridad" \
-    --title "Actualizaciones Desatendidas" \
-    "Dado que este servidor tendrá al menos un puerto abierto a internet, \
+    --title "Actualizaciones Desatendidas" --ok-button "Aceptar" \
+    "Dado que este servidor tendrá al menos un puerto abierto a Internet, \
 se recomienda que habilites las actualizaciones desatendidas (unattended-upgrades).
 Esta función verificará diariamente solo las actualizaciones de paquetes de seguridad y las \
 aplicará cuando sea necesario.
@@ -3888,7 +3888,7 @@ displayFinalMessage() {
   # Mensaje de finalización para el usuario
   whiptail \
     --backtitle "Haz que así sea." \
-    --title "¡Instalación Completada!" \
+    --title "¡Instalación Completada!" --ok-button "Aceptar" \
     --msgbox "Ahora ejecuta 'pivpn add' para crear los perfiles de los clientes.
 ¡Ejecuta 'pivpn help' para ver qué más puedes hacer!
 
