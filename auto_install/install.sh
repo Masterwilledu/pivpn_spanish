@@ -426,15 +426,15 @@ maybeOSSupport() {
   fi
 
   if whiptail \
-    --backtitle "Sistema Operativo No Probado" \
+    --backtitle "SISTEMA OPERATIVO NO PROBADO" \
     --title "Sistema Operativo No Probado" --yes-button "Sí" --no-button "No" \
     --yesno "Estás en un S.O. que no hemos probado pero PODRÍA funcionar.  
-Actualmente este instalador soporta Raspbian, Debian y Ubuntu.
+Actualmente este instalador soporta RaspberryPi OS, Debian y Ubuntu.
 Para más detalles sobre los S.O. compatibles consulta nuestra
 documentación en https://github.com/pivpn/pivpn/wiki
 ¿Te gustaría continuar de todos modos?" "${r}" "${c}"; then
-    echo "::: No se detectó un Sistema Operativo perfectamente compatible pero,"
-    echo -n "::: Continuando la instalación bajo el propio "
+    echo "::: No se detectó un Sistema Operativo perfectamente compatible pero"
+    echo -n "::: puede continuar la instalación bajo el propio "
     echo "riesgo del usuario..."
   else
     err "::: Saliendo debido a un Sistema Operativo no probado"
