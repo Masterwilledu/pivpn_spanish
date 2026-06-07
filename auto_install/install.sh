@@ -409,7 +409,7 @@ noOSSupport() {
 
   whiptail \
     --backtitle "SISTEMA OPERATIVO NO VÁLIDO DETECTADO" \
-    --title "Sistema Operativo no válido" --ok-button "Aceptar" --scrolltext \
+    --title "Sistema Operativo no válido" --ok-button "Aceptar" \
     --msgbox "No hemos podido detectar un Sistema Operativo compatible. Actualmente este instalador soporta Raspberry Pi OS, Debian y Ubuntu.
 
 Para más detalles, consulta nuestra documentación en https://github.com/pivpn/pivpn/wiki" "${r}" "${c}"
@@ -845,14 +845,14 @@ welcomeDialogs() {
   # Mostrar el diálogo de bienvenida
   whiptail \
     --backtitle "BIENVENIDO" \
-    --title "Asistente de instalación PiVPN en Español" --ok-button "Aceptar" --scrolltext \
+    --title "Asistente de instalación PiVPN en Español" --ok-button "Aceptar" \
     --msgbox "PiVPN es un conjunto de herramientas (scripts) de código abierto diseñado para simplificar drásticamente la instalación y gestión de un servidor VPN en una placa Raspberry Pi o en cualquier sistema basado en Linux Debian/Ubuntu. En lugar de tener que instalar y configurar desde cero los complicados archivos de configuración de OpenVPN o WireGuard, PiVPN utiliza un asistente interactivo en la terminal." "${r}" "${c}"
 
 
   # Explicar la necesidad de una dirección estática
   whiptail \
     --backtitle "INICIANDO INTERFAZ DE RED" \
-    --title "IP Local Estática Necesaria" --ok-button "Aceptar" --scrolltext \
+    --title "IP Local Estática Necesaria" --ok-button "Aceptar" \
     --msgbox "PiVPN crea un servidor VPN, tu enrutador necesita saber exactamente a qué dispositivo enviar los datos de la VPN. Si la dirección IP local de tu servidor VPN cambia, el enrutador redirigirá el tráfico a un destino vacío y tu VPN dejará de funcionar por completo. Una IP local estática evita que esto pase.
 
 En la siguiente sección, puedes elegir usar la configuración de red actual por (DHCP) o editarla manualmente." "${r}" "${c}"
@@ -1125,7 +1125,7 @@ askforcedipv6route() {
 
   if whiptail \
     --backtitle "CONFIGURACIÓN DE PRIVACIDAD" \
-    --title "Filtración de IPv6" --yes-button "Sí" \ --no-button "No" --scrolltext \
+    --title "Filtración de IPv6" --yes-button "Sí" \ --no-button "No" \
     --yesno "Aunque este servidor no parece tener una conexión IPv6 en funcionamiento o IPv6 se deshabilitó a propósito, todavía se recomienda forzar todas las conexiones IPv6 por la VPN.
 	
 Esto evitará que el cliente evite el túnel y filtre su dirección IPv6 real a los servidores, aunque podría causar que el cliente tenga una respuesta lenta al navegar por la web en redes IPv6.
