@@ -361,7 +361,6 @@ distroCheck() {
       ["20.04"]="focal"
       ["22.04"]="jammy"
       ["24.04"]="noble"
-	  ["26.04"]="resolute"
     )
     OSCN="${VER_MAP["${VER}"]}"
 
@@ -374,7 +373,7 @@ distroCheck() {
   case "${PLAT}" in
     Debian | Raspbian | Ubuntu)
       case "${OSCN}" in
-        bullseye | bookworm | trixie | focal | jammy | noble | resolute)
+        bullseye | bookworm | trixie | focal | jammy | noble)
           :
           ;;
         *)
