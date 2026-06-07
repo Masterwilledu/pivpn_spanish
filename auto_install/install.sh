@@ -457,7 +457,7 @@ checkHostname() {
     until [[ "${#host_name}" -le 28 ]] \
       && [[ "${host_name}" =~ ^[a-zA-Z0-9][a-zA-Z0-9-]{1,28}$ ]]; do
       host_name="$(whiptail \
-        --title "Nombre de host demasiado largo" \
+        --title "Nombre de host demasiado largo" --ok-button "Aceptar" --cancel-button "Cancelar" \
         --inputbox "Tu nombre de host es demasiado largo.
 Introduce un nuevo nombre de host con menos de 28 caracteres
 No se permiten caracteres especiales." "${r}" "${c}" \
