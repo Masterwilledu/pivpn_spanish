@@ -1124,8 +1124,8 @@ askforcedipv6route() {
   fi
 
   if whiptail \
-    --backtitle "Configuración de privacidad" \
-    --title "Filtración de IPv6" \
+    --backtitle "Configuración de Privacidad" \
+    --title "Filtración de IPv6" --yes-button "Sí" \ --no-button "No" \
     --yesno "Aunque este servidor no parece tener una conexión IPv6 \
 en funcionamiento o IPv6 se deshabilitó a propósito, todavía se \
 recomienda forzar todas las conexiones IPv6 por la VPN.\\n\\nEsto \
@@ -1221,17 +1221,17 @@ getStaticIPv4Settings() {
 
   if whiptail \
     --backtitle "Calibrando la interfaz de red" \
-    --title "Reserva DHCP" \
+    --title "Reserva DHCP" --yes-button "Sí" \ --no-button "No" \
     --defaultno \
-    --yesno "¿Estás usando una reserva DHCP en tu enrutador/servidor DHCP?
+    --yesno "¿Estás usando una IP local reservada por DHCP en tu enrutador/servidor DHCP?
 Estas son tus configuraciones de red actuales:
 
 			Dirección IP:    ${CurrentIPv4addr}
 			Puerta de enlace:       ${CurrentIPv4gw}
 
-Sí: Seguir usando la reserva DHCP
-No: Configurar una dirección IP estática
-¿No sabes qué es una reserva DHCP? Responde No." "${r}" "${c}"; then
+Sí: Seguir usando la IP local reservada DHCP
+No: Configurar una dirección IP Local Estática
+¿No sabes qué es una IP local reservada DHCP? Responde No." "${r}" "${c}"; then
     dhcpReserv=1
 
     {
@@ -1242,12 +1242,12 @@ No: Configurar una dirección IP estática
       echo "IPv4gw=${CurrentIPv4gw}"
     } >> "${tempsetupVarsFile}"
   else
-    # Preguntar si el usuario desea usar las configuraciones de DHCP como su IP estática
+    # Preguntar si el usuario desea usar las configuraciones de DHCP como su IP local estática
     if whiptail \
       --backtitle "Calibrando la interfaz de red" \
-      --title "Dirección IP estática" \
+      --title "Dirección IP estática" --yes-button "Sí" \ --no-button "No" \
       --yesno "¿Deseas usar tus configuraciones de red actuales como una dirección \
-estática?
+IP local estática?
 
 				Dirección IP:    ${CurrentIPv4addr}
 				Puerta de enlace:       ${CurrentIPv4gw}" "${r}" "${c}"; then
@@ -1262,14 +1262,14 @@ estática?
       # Si eligen sí, informarle al usuario que la dirección IP no estará
       # disponible a través de DHCP y podría causar un conflicto.
       whiptail \
-        --backtitle "Información de IP" \
-        --title "Nota: Conflicto de IP" \
+        --backtitle "Información de dirección IP" \
+        --title "Nota: Conflicto de dirección IP" \
         --msgbox "Es posible que tu enrutador intente asignar esta IP a \
 otro dispositivo, lo que causaría un conflicto. Pero en la mayoría de los casos el \
 enrutador es lo suficientemente inteligente como para no hacerlo.
 Si te preocupa, puedes establecer la dirección manualmente, o modificar el \
 rango de reserva DHCP para que no incluya la IP que deseas.
-También es posible usar una reserva DHCP, pero si vas a hacer \
+También es posible reservar la IP por DHCP, pero si vas a hacer \
 eso, lo mejor sería configurar una dirección estática directamente." "${r}" "${c}"
       # Nada más que hacer ya que las variables ya se establecieron arriba
     else
@@ -1293,7 +1293,7 @@ IPv4 deseada" "${r}" "${c}" "${CurrentIPv4addr}" \
             else
               whiptail \
                 --backtitle "Calibrando la interfaz de red" \
-                --title "Dirección IPv4" \
+                --title "Dirección IPv4" --ok-button "Aceptar" \ --cancel-button "Cancelar" \
                 --msgbox "Has introducido una dirección IP no válida: ${IPv4addr}
 
 Por favor, introduce una dirección IP en notación CIDR, ejemplo: 192.168.23.211/24
