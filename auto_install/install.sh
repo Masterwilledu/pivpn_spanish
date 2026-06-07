@@ -852,13 +852,12 @@ welcomeDialogs() {
   whiptail \
     --backtitle "Iniciando interfaz de red" \
     --title "IP Local Estática Necesaria" --ok-button "Aceptar" \
-    --msgbox "PiVPN es un SERVIDOR, por lo que necesita una DIRECCIÓN  LOCAL IP ESTÁTICA \
+    --msgbox "PiVPN es un SERVIDOR, por lo que necesita una DIRECCIÓN LOCAL IP ESTÁTICA \
 para funcionar correctamente.
 
 En la siguiente sección, puedes elegir usar la configuración de red actual \
 (DHCP) o editarla manualmente." "${r}" "${c}"
 }
-
 
 
 chooseInterface() {
