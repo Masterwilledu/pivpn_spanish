@@ -457,7 +457,7 @@ checkHostname() {
     until [[ "${#host_name}" -le 28 ]] \
       && [[ "${host_name}" =~ ^[a-zA-Z0-9][a-zA-Z0-9-]{1,28}$ ]]; do
       host_name="$(whiptail \
-        --title "Nombre de host demasiado largo" \
+        --title "Nombre de host demasiado largo" --ok-button "Aceptar" --cancel-button "Cancelar" \
         --inputbox "Tu nombre de host es demasiado largo.
 Introduce un nuevo nombre de host con menos de 28 caracteres
 No se permiten caracteres especiales." "${r}" "${c}" \
@@ -845,15 +845,14 @@ welcomeDialogs() {
   # Mostrar el diálogo de bienvenida
   whiptail \
     --backtitle "Bienvenido" \
-    --title "Instalador Automatizado de PiVPN" \
-    --msgbox "¡Este instalador transformará tu Raspberry Pi en un \
-servidor OpenVPN o WireGuard!" "${r}" "${c}"
+    --title "Asistente de instalación PiVPN en Español" --ok-button "Aceptar" \
+    --msgbox "PiVPN es un conjunto de herramientas (scripts) de código abierto diseñado para simplificar drásticamente la instalación y gestión de un servidor VPN en una placa Raspberry Pi o en cualquier sistema basado en Linux Debian/Ubuntu. En lugar de tener que instalar y configurar desde cero los complicados archivos de configuración de OpenVPN o WireGuard, PiVPN utiliza un asistente interactivo en la terminal." "${r}" "${c}"
 
   # Explicar la necesidad de una dirección estática
   whiptail \
     --backtitle "Iniciando interfaz de red" \
-    --title "IP Estática Necesaria" \
-    --msgbox "PiVPN es un SERVIDOR, por lo que necesita una DIRECCIÓN IP ESTÁTICA \
+    --title "IP Local Estática Necesaria" --ok-button "Aceptar" \
+    --msgbox "PiVPN es un SERVIDOR, por lo que necesita una DIRECCIÓN IP LOCAL ESTÁTICA \
 para funcionar correctamente.
 
 En la siguiente sección, puedes elegir usar la configuración de red actual \
