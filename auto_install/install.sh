@@ -419,25 +419,25 @@ Para más detalles, consulta nuestra documentación en https://github.com/pivpn/
 
 maybeOSSupport() {
   if [[ "${runUnattended}" == 'true' ]]; then
-    echo "::: OS Not Supported"
-    echo -n "::: You are on an OS that we have not tested but MAY work, "
-    echo "continuing anyway..."
+    echo "::: Sistema Operativo no compatible"
+    echo -n "::: Estás en un Sistema Operativo que no hemos probado pero podría funcionar, "
+    echo "continuando de todos modos..."
     return
   fi
 
   if whiptail \
-    --backtitle "Untested OS" \
-    --title "Untested OS" \
-    --yesno "You are on an OS that we have not tested but MAY work.
-Currently this installer supports Raspbian, Debian and Ubuntu.
-For more details about supported OS please check our documentation \
-at https://github.com/pivpn/pivpn/wiki
-Would you like to continue anyway?" "${r}" "${c}"; then
-    echo "::: Did not detect perfectly supported OS but,"
-    echo -n "::: Continuing installation at user's own "
-    echo "risk..."
+    --backtitle "SISTEMA OPERATIVO NO PROBADO" \
+    --title "Sistema Operativo No Probado" --yes-button "Sí" --no-button "No" \
+    --yesno "Estás en un Sistema Operativo que no hemos probado, pero aún PODRÍA funcionar. Actualmente este instalador soporta Raspberry Pi OS, Debian y Ubuntu.
+
+Para más detalles sobre los Sistemas Operativos compatibles consulta nuestra documentación en https://github.com/pivpn/pivpn/wiki
+
+¿Te gustaría continuar de todos modos?" "${r}" "${c}"; then
+    echo "::: No se detectó un Sistema Operativo perfectamente compatible pero"
+    echo -n "::: puede continuar la instalación bajo su propio "
+    echo "riesgo..."
   else
-    err "::: Exiting due to untested OS"
+    err "::: Saliendo debido a un Sistema Operativo no probado"
     exit 1
   fi
 }
