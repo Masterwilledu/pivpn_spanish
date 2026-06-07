@@ -410,7 +410,7 @@ noOSSupport() {
   whiptail \
     --backtitle "SISTEMA OPERATIVO NO VÁLIDO DETECTADO" \
     --title "Sistema Operativo no válido" --ok-button "Aceptar" --scrolltext \
-    --msgbox "No hemos podido detectar un Sistema Operativo compatible. Actualmente este instalador soporta RaspberryPi OS, Debian y Ubuntu.
+    --msgbox "No hemos podido detectar un Sistema Operativo compatible. Actualmente este instalador soporta Raspberry Pi OS, Debian y Ubuntu.
 
 Para más detalles, consulta nuestra documentación en https://github.com/pivpn/pivpn/wiki" "${r}" "${c}"
   exit 1
@@ -420,7 +420,7 @@ Para más detalles, consulta nuestra documentación en https://github.com/pivpn/
 maybeOSSupport() {
   if [[ "${runUnattended}" == 'true' ]]; then
     echo "::: Sistema Operativo no compatible"
-    echo -n "::: Estás en un S.O que no hemos probado pero podría funcionar, "
+    echo -n "::: Estás en un Sistema Operativo que no hemos probado pero podría funcionar, "
     echo "continuando de todos modos..."
     return
   fi
@@ -428,9 +428,9 @@ maybeOSSupport() {
   if whiptail \
     --backtitle "SISTEMA OPERATIVO NO PROBADO" \
     --title "Sistema Operativo No Probado" --yes-button "Sí" --no-button "No" --scrolltext \
-    --yesno "Estás en un Sistema Operativo que no hemos probado, pero aún PODRÍA funcionar. Actualmente este instalador soporta RaspberryPi OS, Debian y Ubuntu.
+    --yesno "Estás en un Sistema Operativo que no hemos probado, pero aún PODRÍA funcionar. Actualmente este instalador soporta Raspberry Pi OS, Debian y Ubuntu.
 
-Para más detalles sobre los S.O. compatibles consulta nuestra documentación en https://github.com/pivpn/pivpn/wiki
+Para más detalles sobre los Sistema Operativo compatibles consulta nuestra documentación en https://github.com/pivpn/pivpn/wiki
 
 ¿Te gustaría continuar de todos modos?" "${r}" "${c}"; then
     echo "::: No se detectó un Sistema Operativo perfectamente compatible pero"
@@ -838,7 +838,7 @@ welcomeDialogs() {
     echo "::: Instalador Automatizado de PiVPN"
     echo -n "::: Este instalador transformará tu host ${PLAT} en un "
     echo "servidor OpenVPN o WireGuard!"
-    echo "::: Iniciando interfaz de red"
+    echo "::: Iniciando Interfaz de Red"
     return
   fi
 
@@ -1043,8 +1043,8 @@ staticIpNotSupported() {
   # Si estamos en Ubuntu, entonces necesitan haber configurado previamente su red,
   # así que simplemente usa lo que tienes.
   whiptail \
-    --backtitle "Información de IP" \
-    --title "Información de IP" \
+    --backtitle "INFORMACIÓN DE IP" \
+    --title "Información de IP" --ok-button "Aceptar" \
     --msgbox "Dado que creemos que no estás usando Raspberry Pi OS, no \
 configuraremos una IP estática por ti.
 Si estás en Amazon, de todos modos no puedes configurar una IP estática. Solo \
@@ -1124,14 +1124,11 @@ askforcedipv6route() {
   fi
 
   if whiptail \
-    --backtitle "Configuración de privacidad" \
-    --title "Filtración de IPv6" \
-    --yesno "Aunque este servidor no parece tener una conexión IPv6 \
-en funcionamiento o IPv6 se deshabilitó a propósito, todavía se \
-recomienda forzar todas las conexiones IPv6 por la VPN.\\n\\nEsto \
-evitará que el cliente evite el túnel y filtre su IPv6 a servidores, \
-aunque podría causar que el cliente tenga una respuesta lenta al \
-navegar por la web en redes IPv6.
+    --backtitle "CONFIGURACIÓN DE PRIVACIDAD" \
+    --title "Filtración de IPv6" --yes-button "Sí" \ --no-button "No" --scrolltext \
+    --yesno "Aunque este servidor no parece tener una conexión IPv6 en funcionamiento o IPv6 se deshabilitó a propósito, todavía se recomienda forzar todas las conexiones IPv6 por la VPN.
+	
+Esto evitará que el cliente evite el túnel y filtre su dirección IPv6 real a los servidores, aunque podría causar que el cliente tenga una respuesta lenta al navegar por la web en redes IPv6.
 
 ¿Quieres forzar el enrutamiento de IPv6 para bloquear la filtración?" "${r}" "${c}"; then
     pivpnforceipv6route=1
@@ -1141,6 +1138,9 @@ navegar por la web en redes IPv6.
 
   echo "pivpnforceipv6route=${pivpnforceipv6route}" >> "${tempsetupVarsFile}"
 }
+
+
+
 
 getStaticIPv4Settings() {
   # Encontrar la IP de la puerta de enlace utilizada para enrutar al mundo exterior
