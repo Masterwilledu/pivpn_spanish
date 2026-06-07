@@ -434,8 +434,8 @@ Para más detalles sobre los Sistemas Operativos compatibles consulta nuestra do
 
 ¿Te gustaría continuar de todos modos?" "${r}" "${c}"; then
     echo "::: No se detectó un Sistema Operativo perfectamente compatible pero"
-    echo -n "::: puede continuar la instalación bajo el propio "
-    echo "riesgo del usuario..."
+    echo -n "::: puede continuar la instalación bajo su propio "
+    echo "riesgo..."
   else
     err "::: Saliendo debido a un Sistema Operativo no probado"
     exit 1
