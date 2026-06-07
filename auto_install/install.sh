@@ -427,7 +427,7 @@ maybeOSSupport() {
 
   if whiptail \
     --backtitle "Sistema Operativo No Probado" \
-    --title "Sistema Operativo No Probado" \
+    --title "Sistema Operativo No Probado" --yes-button "Sí" --no-button "No" \
     --yesno "Estás en un S.O. que no hemos probado pero PODRÍA funcionar.  
 Actualmente este instalador soporta Raspberry Pi OS, Debian y Ubuntu.
 Para más detalles sobre los S.O. compatibles consulta nuestra
@@ -2107,7 +2107,7 @@ askAboutCustomizing() {
   if [[ "${runUnattended}" == 'false' ]]; then
     if whiptail \
       --backtitle "Configurar PiVPN" \
-      --title "Modo de instalación" \
+      --title "Modo de instalación" --yes-button "Sí" --no-button "No" \
       --defaultno \
       --yesno "PiVPN utiliza las siguientes configuraciones que creemos que son buenas \
 por defecto para la mayoría de los usuarios. Sin embargo, para mantener la flexibilidad, si \
@@ -2340,7 +2340,7 @@ el predeterminado" "${r}" "${c}" "${DEFAULT_PORT}" \
     else
       if whiptail \
         --backtitle "Especificar puerto personalizado" \
-        --title "Confirmar número de puerto personalizado" \
+        --title "Confirmar número de puerto personalizado" --yes-button "Sí" --no-button "No" \
         --yesno "¿Son correctas estas configuraciones?
     PUERTO: ${pivpnPORT}" "${r}" "${c}"; then
         PORTNumCorrect=true
@@ -2447,7 +2447,7 @@ askClientDNS() {
     if [[ "${usePiholeDNS}" == 'true' ]] \
       || whiptail \
         --backtitle "Configurar PiVPN" \
-        --title "Pi-hole" \
+        --title "Pi-hole" --yes-button "Sí" --no-button "No" \
         --yesno "Hemos detectado una instalación de Pi-hole, \
 ¿Quieres usarlo como servidor DNS para la VPN, para que \
 obtengas bloqueo de anuncios sobre la marcha?" "${r}" "${c}"; then
@@ -2551,7 +2551,7 @@ Por favor, inténtalo de nuevo.
         else
           if whiptail \
             --backtitle "Especificar Proveedor(es) DNS de subida" \
-            --title "Proveedor(es) DNS de subida" \
+            --title "Proveedor(es) DNS de subida" --yes-button "Sí" --no-button "No" \
             --yesno "¿Son correctas estas configuraciones?
     Servidor DNS 1: ${pivpnDNS1}
     Servidor DNS 2: ${pivpnDNS2}" "${r}" "${c}"; then
@@ -2615,7 +2615,7 @@ askCustomDomain() {
 
   if whiptail \
     --backtitle "Dominio de búsqueda personalizado" \
-    --title "Dominio de búsqueda personalizado" \
+    --title "Dominio de búsqueda personalizado" --yes-button "Sí" --no-button "No" \
     --defaultno \
     --yesno "¿Te gustaría añadir un dominio de búsqueda personalizado?
 (Esto es solo para usuarios avanzados que tienen su propio dominio)
@@ -2629,7 +2629,7 @@ Formato: midominio.com" "${r}" "${c}" \
         if validDomain "${pivpnSEARCHDOMAIN}"; then
           if whiptail \
             --backtitle "Dominio de búsqueda personalizado" \
-            --title "Dominio de búsqueda personalizado" \
+            --title "Dominio de búsqueda personalizado" --yes-button "Sí" --no-button "No" \
             --yesno "¿Son correctas estas configuraciones?
     Dominio de búsqueda personalizado: ${pivpnSEARCHDOMAIN}" "${r}" "${c}"; then
             DomainSettingsCorrect=true
@@ -2728,7 +2728,7 @@ DNS público de este Servidor?" "${r}" "${c}" \
 
         if whiptail \
           --backtitle "Configuración de PiVPN" \
-          --title "Confirmar Nombre DNS" \
+          --title "Confirmar Nombre DNS" --yes-button "Sí" --no-button "No" \
           --yesno "¿Es correcto esto?
 Nombre DNS Público: ${PUBLICDNS}" "${r}" "${c}"; then
           publicDNSCorrect=true
@@ -2817,7 +2817,7 @@ askEncryption() {
 
   if whiptail \
     --backtitle "Configurar OpenVPN" \
-    --title "Modo de instalación" \
+    --title "Modo de instalación" --yes-button "Sí" --no-button "No" \
     --yesno "OpenVPN 2.5 puede aprovechar las Curvas Elípticas \
 para ofrecer mayor velocidad de conexión y seguridad mejorada sobre \
 RSA, manteniendo certificados más pequeños.
@@ -2873,7 +2873,7 @@ entonces toma una taza de café y elige 4096 bits." "${r}" "${c}" 3 \
   if [[ "${pivpnENCRYPT}" -ge 2048 ]] \
     && whiptail \
       --backtitle "Configurar OpenVPN" \
-      --title "Generar Parámetros Diffie-Hellman" \
+      --title "Generar Parámetros Diffie-Hellman" --yes-button "Sí" --no-button "No" \
       --yesno "Generar parámetros DH puede tomar muchas horas en una Raspberry Pi. \
 Puedes usar en su lugar parámetros DH predefinidos recomendados por la \
 Fuerza de Trabajo de Ingeniería de Internet (IETF).
@@ -3710,7 +3710,7 @@ deberás reiniciar periódicamente." \
 
   if whiptail \
     --backtitle "Actualizaciones de Seguridad" \
-    --title "Actualizaciones Desatendidas" \
+    --title "Actualizaciones Desatendidas" --yes-button "Sí" --no-button "No" \
     --yesno \
     "¿Deseas habilitar las actualizaciones desatendidas \
 de parches de seguridad en este servidor?" \
@@ -3901,7 +3901,7 @@ Gracias por usar PiVPN." "${r}" "${c}"
 
   if whiptail \
     --title "Reiniciar" \
-    --defaultno \
+    --defaultno --yes-button "Sí" --no-button "No" \
     --yesno "Se recomienda encarecidamente reiniciar después de la instalación. \
 ¿Te gustaría reiniciar ahora?" "${r}" "${c}"; then
     whiptail \
