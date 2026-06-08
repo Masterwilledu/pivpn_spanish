@@ -1146,7 +1146,7 @@ Si dejas esto desactivado, el tráfico de tus clientes podría 'fugarse' fuera d
 
 Para evitar esto, se recomienda forzar una ruta IPv6 dentro de la VPN. Esto bloqueará las fugas de datos y mejorará la privacidad, aunque en algunas redes muy específicas podría ralentizar ligeramente la resolución de páginas web en el cliente.
 
-¿Deseas activar la protección para forzar el enrutamiento IPv6 y bloquear posibles fugas de privacidad?" "${r}" "${c}"; then
+¿Deseas activar la protección para forzar el enrutamiento IPv6?" "${r}" "${c}"; then
     pivpnforceipv6route=1
   else
     pivpnforceipv6route=0
@@ -2118,21 +2118,22 @@ Elige una VPN (presiona tecla espacio para seleccionar):" "${r}" "${c}" 2)
 
 askAboutCustomizing() {
   if [[ "${runUnattended}" == 'false' ]]; then
+    # CAMBIO: Se ha reestructurado el texto y la lógica de los botones para que el flujo sea más intuitivo (Sí = Confirmar lo recomendado, No = Personalizar). También se ha mejorado el formato de la lista para una lectura limpia en la terminal (Gemini)
     if whiptail \
-      --backtitle "Configurar PiVPN" \
-      --title "Modo de instalación" --yes-button "Cambiar" --no-button "Continuar" \
-      --defaultno \
-      --yesno "PiVPN utiliza las siguientes configuraciones que creemos que son buenas \
-por defecto para la mayoría de los usuarios, si deseas la configuracion recomendada elige Continuar. \
-Sin embargo, para mantener la flexibilidad, si necesitas personalizarlas, elige Cambiar.
+      --backtitle "Configuración del Servidor PiVPN" \
+      --title "Modo de Instalación y Parámetros" --yes-button "Aceptar y Continuar" --no-button "Personalizar" \
+      --yesno "Para la mayoría de los entornos, PiVPN aplica un perfil de configuración optimizado por defecto. Se compone de los siguientes parámetros técnicos:
 
-* Protocolo UDP o TCP: UDP
-* Dominio de búsqueda personalizado para el campo DNS: Ninguno
-* Características modernas o mejor compatibilidad: Características modernas \
-(certificado de 256 bits + cifrado TLS adicional)" "${r}" "${c}"; then
-      CUSTOMIZE=1
-    else
+• Protocolo de Red: UDP (Más rápido y eficiente)
+• Dominio de Búsqueda DNS: Ninguno (Por defecto)
+• Nivel de Seguridad: Perfil Moderno (Certificado de 256 bits + Cifrado TLS Avanzado)
+
+¿Deseas aplicar estos valores recomendados directamente o prefieres personalizar los detalles de la instalación?" "${r}" "${c}"; then
+      # El usuario eligió "Aceptar y Continuar" -> NO quiere personalizar de forma manual
       CUSTOMIZE=0
+    else
+      # El usuario eligió "Personalizar" -> SÍ quiere cambiar los parámetros manuales
+      CUSTOMIZE=1
     fi
   fi
 }
