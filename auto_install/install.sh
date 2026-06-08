@@ -1516,12 +1516,11 @@ A continuación, selecciona de la lista el usuario local que administrará estas
       3>&1 1>&2 2>&3)"; then
       # See https://askubuntu.com/a/667842/459815
       PASSWORD="$(whiptail \
-        --title "diálogo de contraseña" \
+        --backtitle "Gestión de Usuarios del Sistema" \
+        --title "Credenciales del Nuevo Usuario" \
         --passwordbox \
-        "Por favor, introduce la contraseña del nuevo usuario" \
-        "${r}" \
-        "${c}" \
-        3>&1 1>&2 2>&3)"
+        "Asigna una contraseña segura para la nueva cuenta de usuario:" \
+        "${r}" "${c}" 3>&1 1>&2 2>&3)"
       CRYPT="$(perl \
         -e 'printf("%s\n", crypt($ARGV[0], "password"))' "${PASSWORD}")"
 
@@ -1566,13 +1565,12 @@ A continuación, selecciona de la lista el usuario local que administrará estas
   done <<< "${availableUsers}"
 
   chooseUserCmd=(whiptail
-    --title "Elegir un usuario local del S.O." --ok-button "Aceptar" --cancel-button "Cancelar" \
+    --backtitle "Gestión de Usuarios del Sistema" \
+    --title "Selección de Usuario Local" --ok-button "Seleccionar" --cancel-button "Cancelar" \
     --separate-output
-    --radiolist
-    "Elige un usuario local de la siguiente lista(presiona tecla espacio para seleccionar):"
-    "${r}"
-    "${c}"
-    "${numUsers}")
+    --radiolist \
+    "Selecciona la cuenta que custodiará los certificados VPN (presiona la tecla espacio para marcar):" \
+    "${r}" "${c}" "${numUsers}")
 
   if chooseUserOptions=$("${chooseUserCmd[@]}" \
     "${userArray[@]}" \
