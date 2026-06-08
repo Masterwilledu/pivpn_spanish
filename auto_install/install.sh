@@ -313,7 +313,7 @@ checkExistingInstall() {
 }
 
 askAboutExistingInstall() {
-  # CAMBIO: Se han refinado las etiquetas y descripciones del menú para que reflejen con exactitud técnica la acción de cada opción, facilitando la toma de decisiones al usuario (Gemini)
+  # CAMBIO: Se han refinado las etiquetas y descripciones del menú para que reflejen con exactitud técnica la acción de cada opción, facilitando la toma de decisiones al usuario ()
   opt1a="Actualizar"
   opt1b="Actualiza los scripts y componentes internos de PiVPN"
 
@@ -323,7 +323,7 @@ askAboutExistingInstall() {
   opt3a="Reconfigurar"
   opt3b="Vuelve a instalar PiVPN desde cero (permite cambiar de tipo de VPN)"
 
-  # CAMBIO: Se mejoró el texto del menú de whiptail para darle un formato más limpio, profesional y añadir una advertencia clara sobre la reconfiguración (Gemini)
+  # CAMBIO: Se mejoró el texto del menú de whiptail para darle un formato más limpio, profesional y añadir una advertencia clara sobre la reconfiguración ()
   UpdateCmd="$(whiptail \
     --title "¡Instalación Existente Detectada!" --ok-button "Seleccionar" --cancel-button "Cancelar" \
     --menu "El asistente ha detectado que PiVPN ya se encuentra instalado en este sistema.
@@ -437,32 +437,30 @@ https://github.com/wfhgdev/pivpn_spanish" "${r}" "${c}"
 
 maybeOSSupport() {
   if [[ "${runUnattended}" == 'true' ]]; then
-    echo "::: Sistema Operativo no verificado oficialmente."
-    echo -n "::: Estás en un entorno que no ha sido probado exhaustivamente, "
-    echo "continuando bajo el propio riesgo del usuario..."
+    echo "::: Distribución basada en un sistema compatible."
+    echo -n "::: Estás en un entorno derivado no verificado oficialmente, "
+    echo "continuando con la instalación..."
     return
   fi
 
-  # CAMBIO: Se ha mejorado la estética de los títulos para evitar repeticiones. El texto de la advertencia ahora es más claro, utiliza viñetas para listar los sistemas soportados nativamente y actualiza el enlace hacia tu fork de traducción (Gemini)
+  # CAMBIO: Se ha suavizado el texto de advertencia para entornos derivados de Ubuntu/Debian. Ahora se transmite confianza al usuario explicando que, al compartir la misma base, el script suele funcionar correctamente ()
   if whiptail \
     --backtitle "Verificación de Compatibilidad" \
-    --title "Distribución No Verificada Oficialmente" --yes-button "Continuar" --no-button "Salir" \
-    --yesno "El asistente ha detectado una distribución que no forma parte de los entornos de prueba oficiales de este script.
+    --title "Distribución Alternativa Detectada" --yes-button "Continuar" --no-button "Salir" \
+    --yesno "El asistente ha detectado que estás utilizando una distribución alternativa o derivada.
 
 Nativamente, este instalador está optimizado para:
 • Raspberry Pi OS
 • Debian Linux
 • Ubuntu Server
 
-El script puede intentar continuar con la instalación, pero podrían surgir comportamientos inesperados o incompatibilidades con ciertos paquetes de red. Para más detalles, puedes revisar el repositorio en:
+Al estar basado en una de estas distribuciones, el script suele ejecutarse y configurar la VPN de manera exitosa. Te sugerimos avanzar y supervisar el proceso. Puedes reportar tu experiencia en:
 https://github.com/wfhgdev/pivpn_spanish
 
-¿Deseas continuar con la instalación bajo tu propio riesgo?" "${r}" "${c}"; then
-    echo "::: Advertencia de Sistema Operativo ignorada por el usuario."
-    echo -n "::: Continuando la instalación en un entorno experimental "
-    echo "bajo responsabilidad del usuario..."
+¿Deseas continuar con la instalación en este sistema?" "${r}" "${c}"; then
+    echo "::: Continuando la instalación en una distribución derivada..."
   else
-    err "::: Instalación abortada por el usuario debido a una distribución no verificada."
+    err "::: Instalación cancelada por el usuario al detectar una distribución alternativa."
     exit 1
   fi
 }
@@ -868,7 +866,7 @@ welcomeDialogs() {
     return
   fi
 
-  # CAMBIO: Se ha reestructurado el mensaje de bienvenida para que sea más directo, estético y use un tono profesional de bienvenida al asistente en español (Gemini)
+  # CAMBIO: Se ha reestructurado el mensaje de bienvenida para que sea más directo, estético y use un tono profesional de bienvenida al asistente en español ()
   whiptail \
     --backtitle "Asistente de Instalación PiVPN" \
     --title "Bienvenido a PiVPN en Español" --ok-button "Comenzar" \
@@ -876,7 +874,7 @@ welcomeDialogs() {
 
 PiVPN automatiza las configuraciones complejas de red y seguridad, permitiéndote desplegar un servidor seguro en cuestión de minutos, ideal tanto para Raspberry Pi como para servidores locales o virtuales basados en Debian y Ubuntu." "${r}" "${c}"
 
-  # CAMBIO: Se ha pulido la explicación sobre la IP estática. Ahora aclara que la IP del servidor no debe cambiar para evitar que los clientes externos pierdan la conexión, y presenta las opciones de red de manera más clara (Gemini)
+  # CAMBIO: Se ha pulido la explicación sobre la IP estática. Ahora aclara que la IP del servidor no debe cambiar para evitar que los clientes externos pierdan la conexión, y presenta las opciones de red de manera más clara ()
   whiptail \
     --backtitle "Configuración de Red Local" \
     --title "Requisito: Dirección IP Fija (Estática)" --ok-button "Aceptar" \
@@ -1045,7 +1043,7 @@ IPv4 (presiona tecla espacio para seleccionar):" "${r}" "${c}" "${interfaceCount
 }
 
 checkStaticIpSupported() {
-  # CAMBIO: Añadida compatibilidad con el nuevo PLAT="Raspberry" unificado (Gemini)
+  # CAMBIO: Añadida compatibilidad con el nuevo PLAT="Raspberry" unificado ()
   if [[ "${PLAT}" == "Raspbian" || "${PLAT}" == "Raspberry" ]]; then
     return 0
   elif [[ "${PLAT}" == "Debian" ]] \
@@ -2130,7 +2128,7 @@ Elige una VPN (presiona tecla espacio para seleccionar):" "${r}" "${c}" 2)
 
 askAboutCustomizing() {
   if [[ "${runUnattended}" == 'false' ]]; then
-    # CAMBIO: Se ha reestructurado el texto y la lógica de los botones para que el flujo sea más intuitivo (Sí = Confirmar lo recomendado, No = Personalizar). También se ha mejorado el formato de la lista para una lectura limpia en la terminal (Gemini)
+    # CAMBIO: Se ha reestructurado el texto y la lógica de los botones para que el flujo sea más intuitivo (Sí = Confirmar lo recomendado, No = Personalizar). También se ha mejorado el formato de la lista para una lectura limpia en la terminal ()
     if whiptail \
       --backtitle "Configuración del Servidor PiVPN" \
       --title "Modo de Instalación y Parámetros" --yes-button "Aceptar y Continuar" --no-button "Personalizar" \
@@ -2164,28 +2162,28 @@ installOpenVPN() {
     # (huella digital 0x30EBF4E73CCE63EEE124DD278E6DA8B4E158C569)
     echo "::: Añadiendo clave del repositorio..."
     
-    # CAMBIO: Definición de una ruta de llavero moderna y segura. Se prioriza /usr/share/keyrings en sistemas modernos, cayendo en /etc/apt/trusted.gpg.d si no existe para máxima compatibilidad con distribuciones antiguas (Gemini)
+    # CAMBIO: Definición de una ruta de llavero moderna y segura. Se prioriza /usr/share/keyrings en sistemas modernos, cayendo en /etc/apt/trusted.gpg.d si no existe para máxima compatibilidad con distribuciones antiguas ()
     local keyring_dir="/usr/share/keyrings"
     if [[ ! -d "${keyring_dir}" ]]; then
       keyring_dir="/etc/apt/trusted.gpg.d"
     fi
     local keyring_path="${keyring_dir}/openvpn-repo-keyring.gpg"
 
-    # CAMBIO: Reemplazo del comando obsoleto apt-key add. Ahora se analiza si la clave está en formato ASCII armadura o binario y se escribe en el archivo de destino de forma segura usando gpg --dearmor si es necesario (Gemini)
+    # CAMBIO: Reemplazo del comando obsoleto apt-key add. Ahora se analiza si la clave está en formato ASCII armadura o binario y se escribe en el archivo de destino de forma segura usando gpg --dearmor si es necesario ()
     if gpg --valid-extension "${gpg_path}" &>/dev/null || file "${gpg_path}" | grep -q "gpg public public keyring" || ! grep -q "BEGIN PGP PUBLIC KEY BLOCK" "${gpg_path}"; then
       ${SUDO} cp "${gpg_path}" "${keyring_path}"
     else
       ${SUDO} gpg --dearmor < "${gpg_path}" | ${SUDO} tee "${keyring_path}" > /dev/null
     fi
 
-    # CAMBIO: Verificación de control para asegurar que el archivo del llavero se haya creado correctamente antes de proceder con la instalación (Gemini)
+    # CAMBIO: Verificación de control para asegurar que el archivo del llavero se haya creado correctamente antes de proceder con la instalación ()
     if [[ ! -f "${keyring_path}" ]]; then
       err "::: No se puede importar la clave GPG de OpenVPN"
       exit 1
     fi
 
     echo "::: Añadiendo repositorio de OpenVPN... "
-    # CAMBIO: Modificación de la línea del repositorio para incluir el parámetro [signed-by=...] vinculando directamente la clave GPG específica al repositorio de OpenVPN, eliminando la vulnerabilidad global de apt-key (Gemini)
+    # CAMBIO: Modificación de la línea del repositorio para incluir el parámetro [signed-by=...] vinculando directamente la clave GPG específica al repositorio de OpenVPN, eliminando la vulnerabilidad global de apt-key ()
     echo "deb [signed-by=${keyring_path}] https://build.openvpn.net/debian/openvpn/stable ${OSCN} main" \
       | ${SUDO} tee /etc/apt/sources.list.d/pivpn-openvpn-repo.list > /dev/null
     echo "::: Actualizando la caché de paquetes..."
