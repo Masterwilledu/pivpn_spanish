@@ -1254,7 +1254,7 @@ getStaticIPv4Settings() {
 ¿Tienes esta IP ya reservada de forma fija en la configuración de tu router (Reserva DHCP)? 
 
 • Elige 'Mantener DHCP' si ya la has reservado en tu router o si no estás seguro (es la opción más segura).
-• Elige 'Configurar Manualmente' si prefieres forzar una IP estática fija escribiéndola en este sistema." "${r}" "${c}"; then
+• Elige 'Configurar Manual' si prefieres forzar una IP estática fija escribiéndola en este sistema." "${r}" "${c}"; then
     dhcpReserv=1
 
     {
