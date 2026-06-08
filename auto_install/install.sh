@@ -2289,9 +2289,14 @@ askCustomProto() {
   # Establecer los protocolos disponibles en un arreglo para que pueda ser usado
   # con un diálogo de whiptail
   if pivpnPROTO="$(whiptail \
-    --title "Protocolo" \
-    --radiolist "Elige un protocolo (presiona tecla espacio para seleccionar). \
-Por favor, elige TCP solo si sabes por qué necesitas TCP." "${r}" "${c}" 2 \
+    --backtitle "Configuración de Red" \
+    --title "Selección de Protocolo VPN" --ok-button "Aceptar" --cancel-button "Cancelar" \
+    --radiolist "Selecciona el protocolo de transporte para tu VPN. 
+
+• UDP (Recomendado): Ofrece la mayor velocidad y rendimiento. Es el estándar ideal para la mayoría de los usuarios.
+• TCP: Recomendado únicamente si necesitas atravesar redes corporativas o cortafuegos muy restrictivos que bloquean UDP.
+
+(Usa la barra espaciadora para seleccionar tu opción):" "${r}" "${c}" 2 \
     "UDP" "" ON \
     "TCP" "" OFF \
     3>&1 1>&2 2>&3)"; then
