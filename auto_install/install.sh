@@ -1921,12 +1921,12 @@ setOpenVPNDefaultVars() {
   # Permitir un NET personalizado a través del archivo desatendido setupVARs.
   # Usar el valor predeterminado si no se proporciona.
   if [[ -z "${pivpnNET}" ]]; then
-    echo "::: Generando subred aleatoria en la red 10.0.0.0/8..."
+    echo "::: Asignando subred privada aleatoria dentro del rango 10.0.0.0/8..."
     pivpnNET="$(generateRandomSubnet "10.0.0.0/8" "$subnetClass")"
   fi
 
   if [[ -z "${pivpnNET}" ]]; then
-    echo "::: La red 10.0.0.0/8 no está disponible, probando con 172.16.0.0/12 a continuación..."
+    echo "::: El rango 10.0.0.0/8 está saturado o en uso. Intentando con 172.16.0.0/12..."
     pivpnNET="$(generateRandomSubnet "172.16.0.0/12" "$subnetClass")"
   fi
 
