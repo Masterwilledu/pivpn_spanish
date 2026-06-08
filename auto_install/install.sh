@@ -2093,19 +2093,15 @@ askWhichVPN() {
     if [[ "${WIREGUARD_SUPPORT}" -eq 1 ]] \
       && [[ "${OPENVPN_SUPPORT}" -eq 1 ]]; then
       chooseVPNCmd=(whiptail
-        --backtitle "Configurar PiVPN"
-        --title "Modo de instalación"
+        --backtitle "Configuración Inicial del Servidor"
+        --title "Selección de Protocolo VPN"
         --separate-output
-        --radiolist "WireGuard es un nuevo tipo de VPN que proporciona \
-velocidad de conexión casi instantánea, alto rendimiento y criptografía moderna.
+        --radiolist "Selecciona el motor VPN que deseas instalar en tu sistema:
 
-Es la opción recomendada especialmente si utilizas dispositivos móviles donde \
-WireGuard es más suave con la batería que OpenVPN.
+• WireGuard (Recomendado): Criptografía de última generación, máxima velocidad, conexión casi instantánea y excelente ahorro de batería en móviles.
+• OpenVPN: El estándar tradicional. Muy flexible, altamente compatible y recomendado si necesitas usar TCP para evadir bloqueos de red estrictos.
 
-OpenVPN todavía está disponible si necesitas el tradicional, flexible y confiable \
-protocolo VPN o si necesitas funciones como TCP y dominio de búsqueda personalizado.
-
-Elige una VPN (presiona tecla espacio para seleccionar):" "${r}" "${c}" 2)
+(Presiona la barra espaciadora para marcar tu opción):" "${r}" "${c}" 2)
       VPNChooseOptions=(WireGuard "" on
         OpenVPN "" off)
 
