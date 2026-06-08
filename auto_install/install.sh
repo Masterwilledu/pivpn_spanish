@@ -803,18 +803,18 @@ installDependentPackages() {
     if [[ "${PKG_MANAGER}" == 'apt-get' ]]; then
       if dpkg-query -W -f='${Status}' "${i}" 2> /dev/null \
         | grep -q "ok installed"; then
-        echo " ¡ya instalado!"
+        echo " [Detectada]"
       else
-        echo " ¡no instalado!"
+        echo " [No detectada - Marcada para instalar]"
         # Añadir este paquete a la lista de paquetes en el arreglo de argumentos que
         # necesitan ser instalados
         TO_INSTALL+=("${i}")
       fi
     elif [[ "${PKG_MANAGER}" == 'apk' ]]; then
       if eval "${SUDO} ${CHECK_PKG_INSTALLED} ${i}" &> /dev/null; then
-        echo "[Detectada]"
+        echo " [Detectada]"
       else
-        echo "[No detectada - Marcada para instalar]"
+        echo " [No detectada - Marcada para instalar]"
         # Añadir este paquete a la lista de paquetes en el arreglo de argumentos que
         # necesitan ser instalados
         TO_INSTALL+=("${i}")
