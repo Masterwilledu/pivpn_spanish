@@ -831,7 +831,7 @@ installDependentPackages() {
     if [[ "${PKG_MANAGER}" == 'apt-get' ]]; then
       if dpkg-query -W -f='${Status}' "${i}" 2> /dev/null \
         | grep -q "ok installed"; then
-        echo ":::    ¡Paquete ${i} instalado correctamente!"
+        echo ":::    -> ${i} instalado con éxito."
         # Añadir este paquete a la lista total de paquetes que realmente fueron
         # instalados por el script
         INSTALLED_PACKAGES+=("${i}")
@@ -841,7 +841,7 @@ installDependentPackages() {
       fi
     elif [[ "${PKG_MANAGER}" == 'apk' ]]; then
       if eval "${SUDO} ${CHECK_PKG_INSTALLED} ${i}" &> /dev/null; then
-        echo ":::    ¡Paquete ${i} instalado correctamente!"
+        echo ":::    -> ${i} instalado con éxito."
         # Añadir este paquete a la lista total de paquetes que realmente fueron
         # instalados por el script
         INSTALLED_PACKAGES+=("${i}")
