@@ -2125,8 +2125,7 @@ Sin embargo, para mantener la flexibilidad, si necesitas personalizarlas, elige 
 }
 
 installOpenVPN() {
-  local PIVPN_DEPS gpg_path
-  gpg_path="${pivpnFilesDir}/files/etc/apt/repo-public.gpg"
+  local PIVPN_DEPS gpg_path gpg_path="${pivpnFilesDir}/files/etc/apt/repo-public.gpg"
   echo "::: Instalando OpenVPN desde el paquete de Debian... "
 
   if [[ "${NEED_OPENVPN_REPO}" -eq 1 ]]; then
@@ -2138,22 +2137,36 @@ installOpenVPN() {
     # Clave GPG pública del repositorio de OpenVPN
     # (huella digital 0x30EBF4E73CCE63EEE124DD278E6DA8B4E158C569)
     echo "::: Añadiendo clave del repositorio..."
+    
+    # CAMBIO: Definición de una ruta de llavero moderna y segura. Se prioriza /usr/share/keyrings en sistemas modernos, cayendo en /etc/apt/trusted.gpg.d si no existe para máxima compatibilidad con distribuciones antiguas (Gemini)
+    local keyring_dir="/usr/share/keyrings"
+    if [[ ! -d "${keyring_dir}" ]]; then
+      keyring_dir="/etc/apt/trusted.gpg.d"
+    fi
+    local keyring_path="${keyring_dir}/openvpn-repo-keyring.gpg"
 
-    if ! ${SUDO} apt-key add "${gpg_path}"; then
+    # CAMBIO: Reemplazo del comando obsoleto apt-key add. Ahora se analiza si la clave está en formato ASCII armadura o binario y se escribe en el archivo de destino de forma segura usando gpg --dearmor si es necesario (Gemini)
+    if gpg --valid-extension "${gpg_path}" &>/dev/null || file "${gpg_path}" | grep -q "gpg public public keyring" || ! grep -q "BEGIN PGP PUBLIC KEY BLOCK" "${gpg_path}"; then
+      ${SUDO} cp "${gpg_path}" "${keyring_path}"
+    else
+      ${SUDO} gpg --dearmor < "${gpg_path}" | ${SUDO} tee "${keyring_path}" > /dev/null
+    fi
+
+    # CAMBIO: Verificación de control para asegurar que el archivo del llavero se haya creado correctamente antes de proceder con la instalación (Gemini)
+    if [[ ! -f "${keyring_path}" ]]; then
       err "::: No se puede importar la clave GPG de OpenVPN"
       exit 1
     fi
 
     echo "::: Añadiendo repositorio de OpenVPN... "
-    echo "deb https://build.openvpn.net/debian/openvpn/stable ${OSCN} main" \
+    # CAMBIO: Modificación de la línea del repositorio para incluir el parámetro [signed-by=...] vinculando directamente la clave GPG específica al repositorio de OpenVPN, eliminando la vulnerabilidad global de apt-key (Gemini)
+    echo "deb [signed-by=${keyring_path}] https://build.openvpn.net/debian/openvpn/stable ${OSCN} main" \
       | ${SUDO} tee /etc/apt/sources.list.d/pivpn-openvpn-repo.list > /dev/null
-
     echo "::: Actualizando la caché de paquetes..."
     updatePackageCache
   fi
 
   PIVPN_DEPS=(openvpn)
-
   installDependentPackages PIVPN_DEPS[@]
 }
 
