@@ -3928,15 +3928,18 @@ displayFinalMessage() {
 
   # Mensaje de finalización para el usuario
   whiptail \
-    --backtitle "Haz que así sea." \
-    --title "¡Instalación Completada!" --ok-button "Aceptar" \
-    --msgbox "Ahora ejecuta 'pivpn add' para crear los perfiles de los clientes.
-¡Ejecuta 'pivpn help' para ver qué más puedes hacer!
+    --backtitle "Finalizando Instalación" \
+    --title "¡Configuración Exitosa!" --ok-button "Finalizar" \
+    --msgbox "¡Enhorabuena! Tu servidor VPN ya está operativo.
 
-Si te encuentras con algún problema, por favor lee toda nuestra documentación cuidadosamente.
-Todas las publicaciones o informes de errores incompletos serán ignorados o eliminados.
+Comandos útiles para empezar:
+• pivpn add : Crea nuevos perfiles de usuario.
+• pivpn help : Consulta todos los comandos disponibles.
 
-Gracias por usar PiVPN." "${r}" "${c}"
+¿Encontraste algún problema? 
+Por favor, revisa nuestra documentación oficial antes de reportar un error. Esto nos ayuda a ofrecerte un mejor soporte y a mantener la comunidad organizada.
+
+Gracias por confiar en PiVPN." "${r}" "${c}"
 
   if whiptail \
     --title "Reiniciar" \
