@@ -1272,18 +1272,18 @@ IP local estática?
         echo "IPv4gw=${IPv4gw}"
       } >> "${tempsetupVarsFile}"
 
-      # Si eligen sí, informarle al usuario que la dirección IP no estará
-      # disponible a través de DHCP y podría causar un conflicto.
-      whiptail \
-        --backtitle "Información de dirección IP" \
-        --title "Nota: Conflicto de dirección IP" --ok-button "Aceptar" \
-        --msgbox "Es posible que tu enrutador intente asignar esta IP a \
-otro dispositivo, lo que causaría un conflicto. Pero en la mayoría de los casos el \
-enrutador es lo suficientemente inteligente como para no hacerlo.
-Si te preocupa, puedes establecer la dirección manualmente, o modificar el \
-rango de reserva DHCP para que no incluya la IP que deseas.
-También es posible reservar la IP por DHCP, pero si vas a hacer \
-eso, lo mejor sería configurar una dirección estática directamente." "${r}" "${c}"
+# CAMBIO: Se ha reescrito por completo el texto del cuadro de diálogo sobre conflictos de IP para corregir la imprecisión técnica. Ahora explica claramente el riesgo y promueve de forma asertiva el uso de reservas DHCP en el enrutador como la mejor práctica
+whiptail \
+  --backtitle "Configuración de Red Local" \
+  --title "Aviso: Riesgo de Conflicto de IP" --ok-button "Entendido" \
+  --msgbox "Al asignar una IP fija de forma local, existe la posibilidad de que tu enrutador intente asignar esta misma dirección a otro dispositivo en el futuro, lo que provocaría un conflicto de red y desconectaría tu VPN.
+
+Para evitarlo por completo, tienes dos opciones recomendadas:
+
+1. Configurar una 'Reserva DHCP' en la interfaz de tu enrutador para asociar de forma permanente esta IP a la dirección MAC de tu servidor (la opción más limpia y recomendada).
+2. Modificar el rango de asignación DHCP de tu router para asegurarte de que esta IP quede fuera del alcance automático de los demás dispositivos.
+
+Si ya has tomado alguna de estas medidas en tu enrutador, puedes continuar sin preocuparte." "${r}" "${c}"
       # Nada más que hacer ya que las variables ya se establecieron arriba
     else
       # De lo contrario, debemos pedirle al usuario que introduzca las configuraciones deseadas.
