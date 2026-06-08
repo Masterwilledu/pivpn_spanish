@@ -675,8 +675,8 @@ preconfigurePackages() {
   # caso 1: Si el módulo está integrado y el paquete está disponible,
   #         solo necesitamos instalar wireguard-tools.
   # caso 2: Si el paquete no está disponible, en Debian y
-  #         Raspbian podemos añadirlo mediante el repositorio Bullseye.
-  # caso 3: Si el módulo no está integrado, en Raspbian conocemos
+  #         Raspberry Pi OS podemos añadirlo mediante el repositorio Bullseye.
+  # caso 3: Si el módulo no está integrado, en Raspberry Pi OS conocemos
   #         el paquete de cabeceras: raspberrypi-kernel-headers
   # caso 4: En Alpine, el núcleo debe ser linux-lts o linux-virt
   #         si queremos cargar el módulo del núcleo
