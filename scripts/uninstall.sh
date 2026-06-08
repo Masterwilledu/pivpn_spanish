@@ -321,7 +321,7 @@ removeAll() {
   echo ":::"
   printf "::: Se terminó de eliminar PiVPN de tu sistema.\\n"
   printf "::: Reinstala simplemente ejecutando\\n:::\\n:::\\t"
-  printf "curl https://raw.githubusercontent.com/Masterwilledu/pivpn_spanish/master/auto_install/install.sh | "
+  printf "curl https://raw.githubusercontent.com/wfhgdev/pivpn_spanish/master/auto_install/install.sh | "
   printf "bash\\n:::\\n::: ¡en cualquier momento!\\n:::\\n"
 }
 
