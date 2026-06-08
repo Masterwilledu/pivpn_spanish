@@ -1242,7 +1242,7 @@ getStaticIPv4Settings() {
   # Algunos usuarios reservan direcciones IP en otro servidor DHCP o en sus enrutadores,
   # preguntemos si desean realizar algún cambio en sus interfaces.
 
-  whiptail \
+  if whiptail \
     --backtitle "Configuración de la Interfaz de Red" \
     --title "Método de Asignación de IP" --yes-button "Mantener DHCP (Recomendado)" --no-button "Configurar Manualmente" \
     --defaultno \
