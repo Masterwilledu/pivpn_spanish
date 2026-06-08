@@ -3914,7 +3914,7 @@ displayFinalMessage() {
     echo "o abre un reporte detallado en nuestro repositorio."
     echo "::: (https://github.com/wfhgdev/pivpn_spanish)"
     echo
-    echo "::: Gracias por usar PiVPN_Spanish."
+    echo "::: Gracias por utilizar este instalador en español."
     echo "::: Se recomienda encarecidamente reiniciar después de la instalación."
     return
   fi
