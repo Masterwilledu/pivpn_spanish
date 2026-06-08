@@ -1251,9 +1251,9 @@ getStaticIPv4Settings() {
     • Dirección IP:       ${CurrentIPv4addr}
     • Puerta de enlace:   ${CurrentIPv4gw}
 
-¿Tienes esta IP ya reservada de forma fija en la configuración de tu enrutador (Reserva DHCP)? 
+¿Tienes esta IP ya reservada de forma fija en la configuración de tu router (Reserva DHCP)? 
 
-• Elige 'Mantener DHCP' si ya la has reservado en tu enrutador o si no estás seguro (es la opción más segura).
+• Elige 'Mantener DHCP' si ya la has reservado en tu router o si no estás seguro (es la opción más segura).
 • Elige 'Configurar Manualmente' si prefieres forzar una IP estática fija escribiéndola en este sistema." "${r}" "${c}"; then
     dhcpReserv=1
 
