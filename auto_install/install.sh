@@ -2477,7 +2477,7 @@ obtengas bloqueo de anuncios sobre la marcha?" "${r}" "${c}"; then
 (presiona tecla espacio para seleccionar).
 Para usar el tuyo propio, selecciona Custom.
 
-En caso de que tengas un resolutor local en ejecución, p. ej. unbound, selecciona \
+En caso de que tengas un resolutor DNS local en ejecución (por ej. Pi-hole, AdGuard Home, Unbound) selecciona \
 \"PiVPN-is-local-DNS\" y asegúrate de que esté escuchando en \
 \"${vpnGw}\", permitiendo solicitudes de \
 \"${pivpnNET}/${subnetClass}\"." "${r}" "${c}" 6)
