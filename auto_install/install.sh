@@ -2853,20 +2853,15 @@ askEncryption() {
   fi
 
   if whiptail \
-    --backtitle "Configurar OpenVPN" \
-    --title "Modo de instalación" --yes-button "Sí" --no-button "No" \
-    --yesno "OpenVPN 2.5 puede aprovechar las Curvas Elípticas \
-para ofrecer mayor velocidad de conexión y seguridad mejorada sobre \
-RSA, manteniendo certificados más pequeños.
+    --backtitle "Configuración Criptográfica de OpenVPN" \
+    --title "Motor de Cifrado (Curvas Elípticas vs RSA)" --yes-button "Moderno (ECDSA)" --no-button "Tradicional (RSA)" \
+    --yesno "OpenVPN 2.5 permite utilizar criptografía de Curvas Elípticas (ECDSA). 
 
-Además, la directiva 'tls-crypt-v2' cifra los certificados \
-que se utilizan durante la autenticación, aumentando la privacidad.
+• Nivel Moderno: Ofrece mayor velocidad, seguridad superior y certificados más ligeros. Además, cifra el canal de control (tls-crypt-v2) para maximizar la privacidad.
+• Nivel Tradicional: Utiliza RSA. Es ligeramente más lento, pero garantiza compatibilidad total con clientes OpenVPN antiguos.
 
-Si tus clientes ejecutan OpenVPN 2.5 o posterior puedes habilitar \
-estas funciones, de lo contrario elige 'No' para mejor \
-compatibilidad." \
-    "${r}" \
-    "${c}"; then
+Si todos tus dispositivos cliente son recientes, te recomendamos el perfil Moderno." \
+    "${r}" "${c}"; then
     TWO_POINT_FIVE=1
     pivpnENCRYPT="$(whiptail \
       --backtitle "Configurar OpenVPN" \
