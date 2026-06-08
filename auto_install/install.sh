@@ -1306,23 +1306,24 @@ Si ya has tomado alguna de estas medidas en tu enrutador, puedes continuar sin p
         until [[ "${IPv4AddrValid}" == 'true' ]]; do
           # Solicitar la dirección IPv4
           if IPv4addr="$(whiptail \
-            --backtitle "Configurando la interfaz de red" \
-            --title "Dirección IPv4" \
-            --inputbox "Introduce la dirección \
-IPv4 deseada" "${r}" "${c}" "${CurrentIPv4addr}" \
+            --backtitle "Configuración Manual de la Interfaz de Red" \
+            --title "Asignar Dirección IPv4" --ok-button "Guardar" --cancel-button "Cancelar" \
+            --inputbox "Introduce la dirección IPv4 local que deseas asignar de forma fija al servidor." "${r}" "${c}" "${CurrentIPv4addr}" \
             3>&1 1>&2 2>&3)"; then
             if validIPAndNetmask "${IPv4addr}"; then
               echo "::: Tu dirección IPv4 estática:    ${IPv4addr}"
               IPv4AddrValid=true
             else
-              whiptail \
-                --backtitle "Calibrando la interfaz de red" \
-                --title "Dirección IPv4" --ok-button "Aceptar" \
-                --msgbox "Has introducido una dirección IP no válida: ${IPv4addr}
+              # CAMBIO: Se mejoró el mensaje de error de IP/Máscara para explicar de forma más clara la importancia del formato CIDR (Gemini)
+          whiptail \
+            --backtitle "Configuración Manual de la Interfaz de Red" \
+            --title "Error: Formato IPv4 No Válido" --ok-button "Corregir" \
+            --msgbox "La dirección IP introducida no es válida: ${IPv4addr}
 
-Por favor, introduce una dirección IP en notación CIDR, ejemplo: 192.168.23.211/24
+Recuerda que debes incluir la máscara de red utilizando la notación CIDR.
 
-Si no estás seguro, simplemente mantén la opción predeterminada." "${r}" "${c}"
+Ejemplo correcto: 192.168.1.150/24
+(Donde '/24' equivale a la máscara 255.255.255.0)" "${r}" "${c}"
               echo "::: Dirección IPv4 no válida:    ${IPv4addr}"
               IPv4AddrValid=false
             fi
