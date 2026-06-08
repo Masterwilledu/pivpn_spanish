@@ -1136,17 +1136,17 @@ askforcedipv6route() {
     return
   fi
 
+  # CAMBIO: Se ha reestructurado por completo el texto explicativo del cuadro de diálogo para aclarar el concepto de 'Fuga de IPv6' (IPv6 Leak) y los pros/contras de su activación en clientes modernos
   if whiptail \
-    --backtitle "Configuración de Privacidad" \
-    --title "Filtración de IPv6" --yes-button "Sí" --no-button "No" \
-    --yesno "Aunque este servidor no parece tener una conexión IPv6 \
-en funcionamiento o IPv6 se deshabilitó a propósito, todavía se \
-recomienda forzar todas las conexiones IPv6 por la VPN.\\n\\nEsto \
-evitará que el cliente evite el túnel y filtre su IPv6 a servidores, \
-aunque podría causar que el cliente tenga una respuesta lenta al \
-navegar por la web en redes IPv6.
+    --backtitle "Configuración de Privacidad y Seguridad" \
+    --title "Prevención de Fugas IPv6 (IPv6 Leak)" --yes-button "Sí" --no-button "No" \
+    --yesno "Este servidor no dispone de una conexión IPv6 activa. Sin embargo, los dispositivos que se conecten a tu VPN (móviles, portátiles) podrían estar en redes que sí usen IPv6 de forma nativa.
 
-¿Quieres forzar el enrutamiento de IPv6 para bloquear la filtración?" "${r}" "${c}"; then
+Si dejas esto desactivado, el tráfico de tus clientes podría 'fugarse' fuera del túnel seguro de la VPN y exponer su IP real al navegar por ciertas páginas web.
+
+Para evitar esto, se recomienda forzar una ruta IPv6 dentro de la VPN. Esto bloqueará las fugas de datos y mejorará la privacidad, aunque en algunas redes muy específicas podría ralentizar ligeramente la resolución de páginas web en el cliente.
+
+¿Deseas activar la protección para forzar el enrutamiento IPv6 y bloquear posibles fugas de privacidad?" "${r}" "${c}"; then
     pivpnforceipv6route=1
   else
     pivpnforceipv6route=0
