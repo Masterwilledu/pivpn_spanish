@@ -1,3 +1,8 @@
+# 08 DE JUNIO DE 2026
+Se agrega proveedor DNS AdGaurd a la lista de DNS
+Se agrega soporte a Ubuntu Server 26.04 (resolute)
+Se corrige whiptail "Analizando la lista de usuarios en el S.O."
+
 # Change Log
 All notable changes to this project will be documented in this file.
 
