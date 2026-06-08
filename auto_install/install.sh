@@ -1537,10 +1537,10 @@ chooseUser() {
   done <<< "${availableUsers}"
 
   chooseUserCmd=(whiptail
-    --title "Elegir un usuario"
+    --title "Elegir un usuario local del S.O." --ok-button "Aceptar" --cancel-button "Cancelar" \
     --separate-output
     --radiolist
-    "Elige (presiona tecla espacio para seleccionar):"
+    "Elige un usuario local de la siguiente lista(presiona tecla espacio para seleccionar):"
     "${r}"
     "${c}"
     "${numUsers}")
