@@ -421,12 +421,17 @@ noOSSupport() {
   fi
 
   whiptail \
-    --backtitle "SISTEMA OPERATIVO NO VÁLIDO DETECTADO" \
-    --title "Sistema Operativo no válido" --ok-button "Aceptar" \
-    --msgbox "No hemos podido detectar un Sistema Operativo compatible.
-Actualmente este instalador soporta Raspberry Pi OS, Debian y Ubuntu.
-Para más detalles, consulta nuestra documentación en \
-https://github.com/pivpn/pivpn/wiki" "${r}" "${c}"
+  --backtitle "Error de Compatibilidad de Sistema Operativo" \
+  --title "Sistema Operativo No Soportado" --ok-button "Salir" \
+  --msgbox "El asistente no ha podido detectar una distribución Linux compatible con este instalador de forma nativa.
+
+Para garantizar la estabilidad, este script solo está diseñado para:
+• Raspberry Pi OS (32 y 64 bits)
+• Debian Linux
+• Ubuntu Server
+
+Si crees que se trata de un error o deseas revisar los requisitos técnicos, por favor consulta la documentación en:
+https://github.com/wfhgdev/pivpn_spanish" "${r}" "${c}"
   exit 1
 }
 
