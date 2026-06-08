@@ -198,9 +198,9 @@ rootCheck() {
   echo ":::"
 
   if [[ "${EUID}" -eq 0 ]]; then
-    echo "::: Eres root."
+    echo "::: Privilegios de administrador (root) detectados."
   else
-    echo "::: se usará sudo para la instalación."
+    echo "::: Elevando privilegios con 'sudo' para la instalación..."
 
     # Comprobar si realmente está instalado
     # Si no lo está, salir porque la instalación no puede completarse
@@ -566,7 +566,7 @@ verifyFreeDiskSpace() {
 updatePackageCache() {
   # actualizar listas de paquetes
   echo ":::"
-  echo -e "::: Es necesaria una actualización de la caché de paquetes, ejecutando ${UPDATE_PKG_CACHE} ..."
+  echo -e "::: Actualizando la caché de repositorios locales (${UPDATE_PKG_CACHE})..."
   # shellcheck disable=SC2086
   ${SUDO} ${UPDATE_PKG_CACHE} &> /dev/null &
   spinner "$!"
@@ -577,13 +577,13 @@ notifyPackageUpdatesAvailable() {
   # Informar al usuario si tiene paquetes desactualizados en su sistema y
   # aconsejarle que ejecute una actualización de paquetes lo antes posible.
   echo ":::"
-  echo -n "::: Comprobando ${PKG_MANAGER} en busca de paquetes actualizados...."
+  echo -n "::: Verificando actualizaciones disponibles mediante ${PKG_MANAGER}..."
   updatesToInstall="$(eval "${PKG_COUNT}")"
   echo " ¡hecho!"
   echo ":::"
 
   if [[ "${updatesToInstall}" -eq 0 ]]; then
-    echo "::: ¡Tu sistema está actualizado! Continuando con la instalación de PiVPN..."
+    echo "::: El sistema está al día. Continuando con el despliegue..."
   else
     echo "::: ¡Hay ${updatesToInstall} actualizaciones disponibles para tu sistema!"
     echo "::: ¡Te recomendamos que actualices tu Sistema Operativo después de instalar PiVPN! "
