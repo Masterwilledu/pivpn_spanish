@@ -1320,6 +1320,8 @@ chooseInterface() {
     --separate-output
     --backtitle "Configuración de Interfaces de Red"
     --title "Selección de Interfaz IPv4"
+    --ok-button "Aceptar"
+    --cancel-button "Cancelar"
     --radiolist "Por favor, elija el adaptador de red principal que utilizará el servidor para el tráfico IPv4\n(Presione ESPACIO para marcar su opción y ENTER para continuar):" 
     "${r}" "${c}" "${interfaceCount}")
 
@@ -1340,6 +1342,8 @@ chooseInterface() {
       --separate-output
       --backtitle "Configuración de Interfaces de Red"
       --title "Selección de Interfaz IPv6"
+      --ok-button "Aceptar"
+      --cancel-button "Cancelar"
       --radiolist "Elija el adaptador de red para el tráfico IPv6\n(Por norma general, se recomienda seleccionar el mismo dispositivo usado para IPv4):" 
       "${r}" "${c}" "${interfaceCount}")
 
