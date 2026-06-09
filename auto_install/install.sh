@@ -3724,456 +3724,542 @@ askPublicIPOrDNS() {
 }
 
 askEncryption() {
-  # Inicializamos por defecto para evitar variables vacías en el volcado final
+  # ==============================================================================
+  #       CONFIGURACIÓN DE SEGURIDAD, MOTOR DE CIFRADO Y CERTIFICADOS
+  # ==============================================================================
+  # Define las directivas criptográficas del túnel OpenVPN, permitiendo elegir
+  # entre la pila moderna ECDSA (Curvas Elípticas) o la tradicional RSA.
+
+  local crypto_choice
+  local menu_exit
+  local -i check_fail=0
+
+  # Inicialización estricta por defecto de variables auxiliares
+  TWO_POINT_FIVE=${TWO_POINT_FIVE:-1}
+  pivpnENCRYPT=${pivpnENCRYPT:-""}
   USE_PREDEFINED_DH_PARAM=0
 
-  # ==========================================
-  # 1. MODO DESATENDIDO (UNATTENDED)
-  # ==========================================
+  echo "::: [INFO] Iniciando el asistente para la selección de la arquitectura criptográfica..."
+
+  # ------------------------------------------------------------------------------
+  # MODO 1: INSTALACIÓN DESATENDIDA
+  # ------------------------------------------------------------------------------
   if [[ "${runUnattended}" == 'true' ]]; then
     if [[ -z "${TWO_POINT_FIVE}" ]] || [[ "${TWO_POINT_FIVE}" -eq 1 ]]; then
       TWO_POINT_FIVE=1
-      echo "::: Usando funciones modernas de OpenVPN 2.5 (ECDSA)"
+      echo "::: [INFO] Perfil desatendido: Forzando criptografía moderna de OpenVPN 2.5+ (ECDSA)."
 
-      if [[ -z "${pivpnENCRYPT}" ]]; then
-        pivpnENCRYPT=256
-      fi
+      [[ -z "${pivpnENCRYPT}" ]] && pivpnENCRYPT=256
 
-      if [[ "${pivpnENCRYPT}" -eq 256 ]] \
-        || [[ "${pivpnENCRYPT}" -eq 384 ]] \
-        || [[ "${pivpnENCRYPT}" -eq 521 ]]; then
-        echo "::: Usando un certificado de ${pivpnENCRYPT} bits"
+      if [[ "${pivpnENCRYPT}" -eq 256 || "${pivpnENCRYPT}" -eq 384 || "${pivpnENCRYPT}" -eq 521 ]]; then
+        echo "::: [INFO] Validando longitud de clave ECDSA: ${pivpnENCRYPT} bits."
       else
-        err "::: ${pivpnENCRYPT} no es un tamaño de certificado ECDSA válido. Usa 256, 384 o 521."
+        err "Error de validación: '${pivpnENCRYPT}' no es un tamaño de certificado ECDSA válido (Valores: 256, 384 o 521)."
         exit 1
       fi
     else
       TWO_POINT_FIVE=0
-      echo "::: Usando configuración tradicional de OpenVPN (RSA)"
+      echo "::: [INFO] Perfil desatendido: Forzando criptografía heredada (RSA)."
 
-      if [[ -z "${pivpnENCRYPT}" ]]; then
-        pivpnENCRYPT=2048
-      fi
+      [[ -z "${pivpnENCRYPT}" ]] && pivpnENCRYPT=2048
 
-      if [[ "${pivpnENCRYPT}" -eq 2048 ]] \
-        || [[ "${pivpnENCRYPT}" -eq 3072 ]] \
-        || [[ "${pivpnENCRYPT}" -eq 4096 ]]; then
-        echo "::: Usando un certificado de ${pivpnENCRYPT} bits"
+      if [[ "${pivpnENCRYPT}" -eq 2048 || "${pivpnENCRYPT}" -eq 3072 || "${pivpnENCRYPT}" -eq 4096 ]]; then
+        echo "::: [INFO] Validando longitud de clave RSA: ${pivpnENCRYPT} bits."
       else
-        err "::: ${pivpnENCRYPT} no es un tamaño de certificado RSA válido. Usa 2048, 3072 o 4096."
+        err "Error de validación: '${pivpnENCRYPT}' no es un tamaño de certificado RSA válido (Valores: 2048, 3072 o 4096)."
         exit 1
       fi
 
-      if [[ -z "${USE_PREDEFINED_DH_PARAM}" ]]; then
-        USE_PREDEFINED_DH_PARAM=1
-      fi
-
+      # Forzar parámetros DH predefinidos si no hay instrucción explícita
+      [[ -z "${USE_PREDEFINED_DH_PARAM}" ]] && USE_PREDEFINED_DH_PARAM=1
+      
       if [[ "${USE_PREDEFINED_DH_PARAM}" -eq 1 ]]; then
-        echo "::: Se usarán parámetros DH predefinidos"
+        echo "::: [INFO] Se utilizarán parámetros Diffie-Hellman estáticos estandarizados."
       else
-        echo "::: Los parámetros DH se generarán localmente"
+        echo "::: [AVISO] Los parámetros Diffie-Hellman se generarán dinámicamente en el host local."
       fi
     fi
 
-    {
-      echo "TWO_POINT_FIVE=${TWO_POINT_FIVE}"
-      echo "pivpnENCRYPT=${pivpnENCRYPT}"
-      echo "USE_PREDEFINED_DH_PARAM=${USE_PREDEFINED_DH_PARAM}"
-    } >> "${tempsetupVarsFile}"
-    return
-  fi
-
-  # ==========================================
-  # 2. MODO INTERACTIVO POR DEFECTO (SIN PERSONALIZAR)
-  # ==========================================
-  if [[ "${CUSTOMIZE}" -eq 0 ]]; then
+  # ------------------------------------------------------------------------------
+  # MODO 2: INSTALACIÓN INTERACTIVA (PERFIL RÁPIDO GUIADO)
+  # ------------------------------------------------------------------------------
+  elif [[ "${CUSTOMIZE:-1}" -eq 0 ]]; then
     if [[ "${VPN}" == "openvpn" ]]; then
+      echo "::: [INFO] Perfil guiado rápido: Aplicando configuración ECDSA estándar (256 bits)."
       TWO_POINT_FIVE=1
       pivpnENCRYPT=256
-      USE_PREDEFINED_DH_PARAM=0 # Aseguramos valor por defecto limpio
-
-      {
-        echo "TWO_POINT_FIVE=${TWO_POINT_FIVE}"
-        echo "pivpnENCRYPT=${pivpnENCRYPT}"
-        echo "USE_PREDEFINED_DH_PARAM=${USE_PREDEFINED_DH_PARAM}"
-      } >> "${tempsetupVarsFile}"
-      return
-    fi
-  fi
-
-  # ==========================================
-  # 3. MODO INTERACTIVO PERSONALIZADO (CUSTOM)
-  # ==========================================
-  
-  # Pantalla 1: Selección del tipo de cifrado (ECDSA vs RSA)
-  whiptail \
-    --backtitle "Configurador PiVPN" \
-    --title "Motor de Cifrado (Curvas Elípticas vs RSA)" --yes-button "Moderno (ECDSA)" --no-button "Tradicional (RSA)" \
-    --yesno "OpenVPN 2.5 permite utilizar criptografía de Curvas Elípticas (ECDSA).
-
-• Nivel Moderno: Ofrece mayor velocidad, seguridad superior y certificados más ligeros. Además, cifra el canal de control (tls-crypt-v2) para maximizar la privacidad.
-• Nivel Tradicional: Utiliza RSA. Garantiza compatibilidad total con clientes OpenVPN antiguos a costa de un rendimiento ligeramente menor.
-
-Si tus dispositivos cliente son recientes, te recomendamos el perfil Moderno." "${r}" "${c}"
-  
-  crypto_choice="$?"
-
-  # Manejo estricto de cancelación global o Esc en la primera pantalla
-  if [[ "${crypto_choice}" -eq 255 ]]; then
-    err "::: Instalación cancelada por el usuario. Saliendo..."
-    exit 1
-  fi
-
-  if [[ "${crypto_choice}" -eq 0 ]]; then
-    # --- PERFIL MODERNO (ECDSA) ---
-    TWO_POINT_FIVE=1
-    USE_PREDEFINED_DH_PARAM=0 # ECDSA no requiere Diffie-Hellman
-    
-    pivpnENCRYPT="$(whiptail \
-      --backtitle "Configurador PiVPN" \
-      --title "Tamaño del Certificado ECDSA" \
-      --ok-button "Seleccionar" \
-      --cancel-button "Cancelar" \
-      --radiolist "Elige la longitud de clave para tu certificado ECDSA \
-(Usa la barra espaciadora para marcar tu opción):
-
-Nota: Una clave de 256 bits equivale en seguridad a una clave RSA de 3072 bits, \
-siendo drásticamente más rápida." "${r}" "${c}" 3 \
-      "256" "Certificado de 256 bits (Recomendado por rendimiento)" ON \
-      "384" "Certificado de 384 bits (Seguridad avanzada)" OFF \
-      "521" "Certificado de 521 bits (Máxima seguridad militar)" OFF \
-      3>&1 1>&2 2>&3)"
-  else
-    # --- PERFIL TRADICIONAL (RSA) ---
-    TWO_POINT_FIVE=0
-    
-    pivpnENCRYPT="$(whiptail \
-      --backtitle "Configurador PiVPN" \
-      --title "Tamaño del Certificado RSA" --ok-button "Seleccionar" --cancel-button "Cancelar" \
-      --radiolist "Elige la longitud de clave para tu certificado RSA \
-(Usa la barra espaciadora para marcar tu opción):
-
-A mayor tamaño de clave, mayor seguridad, pero aumentará el tiempo \
-de procesamiento durante la instalación." "${r}" "${c}" 3 \
-      "2048" "Certificado de 2048 bits (Estándar recomendado)" ON \
-      "3072" "Certificado de 3072 bits (Seguridad reforzada)" OFF \
-      "4096" "Certificado de 4096 bits (Alta seguridad / Procesamiento lento)" OFF \
-      3>&1 1>&2 2>&3)"
-  fi
-
-  # Validamos si el usuario canceló en cualquiera de las sublistas de radio
-  if [[ $? -ne 0 ]] || [[ -z "${pivpnENCRYPT}" ]]; then
-    err "::: Operación cancelada. Saliendo..."
-    exit 1
-  fi
-
-  # --- CONFIGURACIÓN DIFFIE-HELLMAN (Solo aplica para RSA) ---
-  if [[ "${pivpnENCRYPT}" -ge 2048 ]]; then
-    if whiptail \
-      --backtitle "Configurador PiVPN" \
-      --title "Parámetros Diffie-Hellman" \
-      --yes-button "Sí, predefinidos" \
-      --no-button "No, generar nuevos" \
-      --yesno "La generación local de parámetros DH puede demorar varias horas en entornos como Raspberry Pi.
-
-¿Deseas utilizar los parámetros DH predefinidos y validados por la IETF (Recomendado)?
-
-Si prefieres generar parámetros Diffie-Hellman únicos en este hardware, selecciona 'No'." "${r}" "${c}"; then
-      USE_PREDEFINED_DH_PARAM=1
-    else
       USE_PREDEFINED_DH_PARAM=0
     fi
+
+  # ------------------------------------------------------------------------------
+  # MODO 3: INSTALACIÓN INTERACTIVA (PERSONALIZACIÓN MANUAL)
+  # ------------------------------------------------------------------------------
+  else
+    # Pantalla 1: Selección del paradigma/algoritmo base
+    whiptail \
+      --backtitle "Asistente de Configuración - PiVPN" \
+      --title "Selección del Motor de Cifrado" \
+      --yes-button "Moderno (ECDSA)" \
+      --no-button "Tradicional (RSA)" \
+      --yesno "OpenVPN permite desplegar dos arquitecturas criptográficas distintas:\n\n• Perfil Moderno (ECDSA): Utiliza criptografía de Curvas Elípticas. Es drásticamente más rápido, consume menos CPU y genera certificados ligeros con seguridad máxima. Cifra además la cabecera mediante 'tls-crypt-v2'.\n• Perfil Tradicional (RSA): Garantiza retrocompatibilidad total con dispositivos u operating systems muy antiguos, requiriendo mayor cómputo y tiempo de inicialización.\n\nSe recomienda encarecidamente utilizar el perfil Moderno (ECDSA)." \
+      "${r:-20}" "${c:-78}"
+    
+    crypto_choice="$?"
+
+    # Control estricto del botón Cancelar / Tecla ESC en pantalla principal
+    if [[ "${crypto_choice}" -eq 255 ]]; then
+      echo "::: [AVISO] Cancelación o interrupción detectada en el menú criptográfico. Saliendo..." >&2
+      exit 1
+    fi
+
+    if [[ "${crypto_choice}" -eq 0 ]]; then
+      # --- RAMA INTERACTIVA: ECDSA ---
+      TWO_POINT_FIVE=1
+      USE_PREDEFINED_DH_PARAM=0 # Las curvas elípticas omiten los parámetros DH de factor primo
+
+      pivpnENCRYPT="$(whiptail \
+        --backtitle "Asistente de Configuración - PiVPN" \
+        --title "Longitud de Clave ECDSA" \
+        --ok-button "Seleccionar" \
+        --cancel-button "Cancelar" \
+        --radiolist "Selecciona el tamaño del certificado basado en curvas elípticas (ECDSA):\n\n(Usa las flechas para moverte y la barra espaciadora para marcar la opción)\n\nNota: Una clave elíptica de 256 bits provee la misma resistencia que una clave RSA de 3072 bits, reduciendo la latencia de conexión." \
+        "${r:-18}" "${c:-78}" 3 \
+        "256" "ECDSA de 256 bits (Balance idóneo velocidad/seguridad)" ON \
+        "384" "ECDSA de 384 bits (Criptografía militar reforzada)" OFF \
+        "521" "ECDSA de 521 bits (Máxima seguridad de grado gubernamental)" OFF \
+        3>&1 1>&2 2>&3)"
+      
+      menu_exit="$?"
+    else
+      # --- RAMA INTERACTIVA: RSA ---
+      TWO_POINT_FIVE=0
+
+      pivpnENCRYPT="$(whiptail \
+        --backtitle "Asistente de Configuración - PiVPN" \
+        --title "Longitud de Clave RSA" \
+        --ok-button "Seleccionar" \
+        --cancel-button "Cancelar" \
+        --radiolist "Selecciona el tamaño del certificado clásico RSA:\n\n[AVISO] Configurar claves superiores a 2048 bits incrementará significativamente el uso de CPU durante el handshake de los clientes." \
+        "${r:-16}" "${c:-78}" 3 \
+        "2048" "RSA de 2048 bits (Estándar comercial seguro y compatible)" ON \
+        "3072" "RSA de 3072 bits (Seguridad avanzada a medio rendimiento)" OFF \
+        "4096" "RSA de 4096 bits (Seguridad ultra alta / Procesamiento lento)" OFF \
+        3>&1 1>&2 2>&3)"
+      
+      menu_exit="$?"
+    fi
+
+    # Validación de cancelación en los submenús radiolist
+    if [[ "${menu_exit}" -ne 0 || -z "${pivpnENCRYPT}" ]]; then
+      echo "::: [AVISO] Cancelación detectada en la selección de bits. Abortando instalación..." >&2
+      exit 1
+    fi
+
+    # --- CONTROL DE INTERCAMBIO DE CLAVES DIFFIE-HELLMAN (Solo RSA) ---
+    if [[ "${TWO_POINT_FIVE}" -eq 0 ]]; then
+      if whiptail \
+        --backtitle "Asistente de Configuración - PiVPN" \
+        --title "Configuración de Parámetros Diffie-Hellman" \
+        --yes-button "Usar Predefinidos" \
+        --no-button "Generar Propios" \
+        --yesno "La generación manual de parámetros Diffie-Hellman (DH) requiere un uso exhaustivo de la entropía del sistema y puede demorar horas en hardware limitado como la Raspberry Pi.\n\n¿Deseas utilizar los parámetros estándar precalculados y validados internacionalmente por la IETF (Recomendado)?\n\nSi prefieres obligar al host a calcular un grupo DH único a costa de tiempo de espera, selecciona 'Generar Propios'." \
+        "${r:-20}" "${c:-78}"; then
+        
+        USE_PREDEFINED_DH_PARAM=1
+        echo "::: [INFO] El usuario ha seleccionado parámetros DH predefinidos."
+      else
+        USE_PREDEFINED_DH_PARAM=0
+        echo "::: [AVISO] El usuario ha optado por la generación matemática de parámetros DH en local."
+      fi
+    fi
   fi
 
-  # Volcado limpio de variables de entorno al archivo temporal
-  {
+  # ------------------------------------------------------------------------------
+  # PERSISTENCIA TRANSACCIONAL CENTRALIZADA EN ALMACENAMIENTO SECUNDARIO
+  # ------------------------------------------------------------------------------
+  if ! {
     echo "TWO_POINT_FIVE=${TWO_POINT_FIVE}"
     echo "pivpnENCRYPT=${pivpnENCRYPT}"
     echo "USE_PREDEFINED_DH_PARAM=${USE_PREDEFINED_DH_PARAM}"
-  } >> "${tempsetupVarsFile}"
+  } >> "${tempsetupVarsFile}"; then
+    err "Fallo crítico de E/S: No se pudieron persistir los parámetros criptográficos en '${tempsetupVarsFile}'."
+    exit 1
+  fi
+
+  echo "::: [ÉXITO] Arquitectura de cifrado consolidada correctamente (Algoritmo: $([[ "${TWO_POINT_FIVE}" -eq 1 ]] && echo "ECDSA" || echo "RSA"), Clave: ${pivpnENCRYPT} bits)."
 }
 
 confOpenVPN() {
-  local sed_pattern file_pattern
+  local sed_pattern file_pattern host_name NEW_UUID SERVER_NAME
+  local OPENVPN_BACKUP CURRENT_UMASK ta_path tc_v2_path tc_v2_cmd_path
+  local target_user template_file
 
-  # Obtener el nombre de host existente
-  host_name="$(hostname -s)"
-  # Generar un UUID aleatorio para este servidor para que podamos usar
-  # verify-x509-name más adelante que sea único para esta
-  # instalación.
-  NEW_UUID="$(< /proc/sys/kernel/random/uuid)"
-  # Crear un nombre de servidor único usando el nombre de host y UUID
+  echo "::: [INFO] Iniciando la fase de configuración criptográfica de OpenVPN..."
+
+  # Obtener el nombre de host existente de forma segura
+  host_name="$(hostname -s 2>/dev/null || echo "pivpn-server")"
+
+  # Mecanismo robusto de contingencia para la generación del UUID único del servidor
+  if [[ -f /proc/sys/kernel/random/uuid ]]; then
+    NEW_UUID="$(< /proc/sys/kernel/random/uuid)"
+  elif command -v uuidgen &> /dev/null; then
+    NEW_UUID="$(uuidgen)"
+  else
+    NEW_UUID="$(cat /dev/urandom | tr -dc 'a-f0-9' | fold -w 32 | head -n 1)"
+  fi
+
+  # Crear un identificador de servidor único e irreversible
   SERVER_NAME="${host_name}_${NEW_UUID}"
+  echo "::: [INFO] Identificador único asignado al servidor: ${SERVER_NAME}"
 
-  # Hacer copia de seguridad de la carpeta openvpn
-  OPENVPN_BACKUP="openvpn_$(date +%Y-%m-%d-%H%M%S).tar.gz"
-  echo "::: Generando respaldo de la configuración anterior en /etc/${OPENVPN_BACKUP}..."
-  CURRENT_UMASK="$(umask)"
-  umask 0077
-  ${SUDO} tar -czf "/etc/${OPENVPN_BACKUP}" /etc/openvpn &> /dev/null
-  umask "${CURRENT_UMASK}"
+  # Realizar copia de seguridad preventiva solo si existe una configuración previa
+  if [[ -d /etc/openvpn ]]; then
+    OPENVPN_BACKUP="openvpn_$(date +%Y-%m-%d-%H%M%S).tar.gz"
+    echo "::: [INFO] Generando respaldo de la configuración anterior en /etc/${OPENVPN_BACKUP}..."
+    CURRENT_UMASK="$(umask)"
+    umask 0077
+    if ${SUDO} tar -czf "/etc/${OPENVPN_BACKUP}" /etc/openvpn &> /dev/null; then
+      echo "::: [ÉXITO] Respaldo de seguridad creado correctamente."
+    else
+      echo "::: [ADVERTENCIA] No se pudo procesar el empaquetado de respaldo en /etc/${OPENVPN_BACKUP}."
+    fi
+    umask "${CURRENT_UMASK}"
+  else
+    echo "::: [INFO] No se localizó ninguna jerarquía previa de OpenVPN. Omitiendo respaldo."
+  fi
 
+  echo "::: [INFO] Saneando el espacio de nombres y directorios del sistema..."
   if [[ -f /etc/openvpn/server.conf ]]; then
-    ${SUDO} rm /etc/openvpn/server.conf
+    ${SUDO} rm -f /etc/openvpn/server.conf
   fi
 
   if [[ -d /etc/openvpn/ccd ]]; then
     ${SUDO} rm -rf /etc/openvpn/ccd
   fi
 
-  # Crear carpeta para almacenar directivas específicas del cliente usadas para empujar IPs estáticas
-  ${SUDO} mkdir /etc/openvpn/ccd
+  # Crear carpeta para almacenar las directivas específicas de asignación estática de IPs (CCD)
+  if ! ${SUDO} mkdir -p /etc/openvpn/ccd; then
+    err "Fallo de entorno: No se pudo crear el directorio operativo '/etc/openvpn/ccd'."
+    exit 1
+  fi
 
-  # Si easy-rsa existe, eliminarlo
+  # Remoción controlada de instancias antiguas de easy-rsa
   if [[ -d /etc/openvpn/easy-rsa/ ]]; then
     ${SUDO} rm -rf /etc/openvpn/easy-rsa/
   fi
 
-  # Obtener easy-rsa
-  curl -sSfL "${easyrsaRel}" \
-    | ${SUDO} tar -xz --one-top-level=/etc/openvpn/easy-rsa --strip-components 1
-
-  if [[ ! -s /etc/openvpn/easy-rsa/easyrsa ]]; then
-    err "${0}: ERR: Fallo al descargar EasyRSA."
+  # Adquisición segura del paquete EasyRSA y desempaquetado transaccional en tubería
+  echo "::: [INFO] Descargando componentes del motor de certificación EasyRSA (v${easyrsaVer:-3.x})..."
+  if ! curl -sSfL "${easyrsaRel}" | ${SUDO} tar -xz --one-top-level=/etc/openvpn/easy-rsa --strip-components 1; then
+    err "Error de red: Falló la descarga o la extracción de los binarios de EasyRSA desde: ${easyrsaRel}"
     exit 1
   fi
 
-  # arreglar propiedad
-  ${SUDO} chown -R root:root /etc/openvpn/easy-rsa
-  ${SUDO} mkdir /etc/openvpn/easy-rsa/pki
-  ${SUDO} chmod 700 /etc/openvpn/easy-rsa/pki
+  if [[ ! -s /etc/openvpn/easy-rsa/easyrsa ]]; then
+    err "Fallo de integridad: El ejecutable de EasyRSA no se encuentra operativo o se descargó vacío."
+    exit 1
+  fi
 
-  cd /etc/openvpn/easy-rsa || exit 1
+  # Asignación estricta de permisos de aislamiento del entorno PKI
+  echo "::: [INFO] Aplicando restricciones de seguridad y propiedad sobre los binarios PKI..."
+  if ! ${SUDO} chown -R root:root /etc/openvpn/easy-rsa; then
+    err "No se pudo reasignar la propiedad del directorio /etc/openvpn/easy-rsa a root."
+    exit 1
+  fi
 
+  if ! ${SUDO} mkdir -p /etc/openvpn/easy-rsa/pki || ! ${SUDO} chmod 700 /etc/openvpn/easy-rsa/pki; then
+    err "Fallo de privilegios: No se pudo aislar criptográficamente el directorio pki."
+    exit 1
+  fi
+
+  if ! cd /etc/openvpn/easy-rsa; then
+    err "Fallo de ruta: No se pudo acceder al directorio raíz de EasyRSA."
+    exit 1
+  fi
+
+  # Determinación de perfiles criptográficos según capacidades del servidor detectadas (OpenVPN v2.5+)
   if [[ "${TWO_POINT_FIVE}" -eq 1 ]]; then
     pivpnCERT="ec"
     pivpnTLSVERS="1.3"
     pivpnTLSPROT="tls-crypt-v2"
+    echo "::: [INFO] Perfil optimizado detectado: Configurando suite OpenVPN 2.5+ (ECC / TLS 1.3 / TLS-Crypt-V2)."
   else
     pivpnCERT="rsa"
     pivpnTLSVERS="1.2"
     pivpnTLSPROT="tls-auth"
+    echo "::: [INFO] Perfil estándar seleccionado: Configurando suite tradicional (RSA / TLS 1.2 / TLS-Auth)."
   fi
 
-  # Eliminar cualquier clave anterior
-  ${SUDOE} ./easyrsa --batch init-pki
+  # Inicialización formal de la infraestructura de clave pública borrando trazas previas
+  echo "::: [INFO] Inicializando estructura PKI limpia con EasyRSA..."
+  if ! ${SUDOE} ./easyrsa --batch init-pki &> /dev/null; then
+    err "Fallo criptográfico: No se pudo inicializar la infraestructura PKI mediante EasyRSA."
+    exit 1
+  fi
 
-  # Copiar archivo de variables de plantilla
-  ${SUDOE} cp vars.example pki/vars
+  if ! ${SUDOE} cp vars.example pki/vars; then
+    err "Fallo de E/S: No se pudo duplicar la plantilla de directivas 'vars.example'."
+    exit 1
+  fi
 
-  # Establecer certificado de curva elíptica o certificados rsa tradicionales
-  ${SUDOE} sed -i \
-    "s/#set_var EASYRSA_ALGO.*/set_var EASYRSA_ALGO ${pivpnCERT}/" \
-    pki/vars
+  # Inyección de parámetros específicos en el archivo de variables internas de la CA
+  echo "::: [INFO] Aplicando algoritmo '${pivpnCERT^^}' en la matriz de variables..."
+  if ! ${SUDOE} sed -i "s/#set_var EASYRSA_ALGO.*/set_var EASYRSA_ALGO ${pivpnCERT}/" pki/vars; then
+    err "Error al escribir la directiva EASYRSA_ALGO."
+    exit 1
+  fi
 
-  # Establecer expiración para la CRL a 10 años
-  ${SUDOE} sed -i \
-    's/#set_var EASYRSA_CRL_DAYS.*/set_var EASYRSA_CRL_DAYS 3650/' \
-    pki/vars
+  echo "::: [INFO] Fijando el ciclo de expiración de la lista de revocación (CRL) en 10 años (3650 días)..."
+  if ! ${SUDOE} sed -i 's/#set_var EASYRSA_CRL_DAYS.*/set_var EASYRSA_CRL_DAYS 3650/' pki/vars; then
+    err "Error al escribir la directiva EASYRSA_CRL_DAYS."
+    exit 1
+  fi
 
   if [[ "${pivpnENCRYPT}" -ge 2048 ]]; then
-    # Establecer tamaño de clave personalizado si es diferente al predeterminado
-    sed_pattern="s/#set_var EASYRSA_KEY_SIZE.*/"
-    sed_pattern="${sed_pattern} set_var EASYRSA_KEY_SIZE ${pivpnENCRYPT}/"
-    ${SUDOE} sed -i "${sed_pattern}" pki/vars
+    echo "::: [INFO] Parametrizando tamaño de clave RSA personalizado a ${pivpnENCRYPT} bits..."
+    sed_pattern="s/#set_var EASYRSA_KEY_SIZE.*/set_var EASYRSA_KEY_SIZE ${pivpnENCRYPT}/"
+    if ! ${SUDOE} sed -i "${sed_pattern}" pki/vars; then
+      err "Error al fijar la longitud de clave EASYRSA_KEY_SIZE."
+      exit 1
+    fi
   else
-    # Si es menor a 2048, entonces debe ser 521 o inferior,
-    # lo que significa que se seleccionó un certificado de curva elíptica.
-    # Establecemos la curva en este caso.
-    declare -A ECDSA_MAP=(["256"]="prime256v1"
+    # Mapeo estructurado para la asignación de curvas elípticas homólogas a la longitud elegida
+    declare -A ECDSA_MAP=(
+      ["256"]="prime256v1"
       ["384"]="secp384r1"
-      ["521"]="secp521r1")
+      ["521"]="secp521r1"
+    )
 
-    sed_pattern="s/#set_var EASYRSA_CURVE.*/"
-    sed_pattern="${sed_pattern} set_var EASYRSA_CURVE"
-    sed_pattern="${sed_pattern} ${ECDSA_MAP["${pivpnENCRYPT}"]}/"
-    ${SUDOE} sed -i "${sed_pattern}" pki/vars
-  fi
-
-  # Construir la autoridad de certificación
-  printf "::: Construyendo CA...\\n"
-  ${SUDOE} ./easyrsa --batch build-ca nopass
-  printf "\\n::: CA Completada.\\n"
-
-  if [[ "${pivpnCERT}" == "rsa" ]] \
-    && [[ "${USE_PREDEFINED_DH_PARAM}" -ne 1 ]]; then
-    if [[ "${runUnattended}" == 'true' ]]; then
-      echo "::: La clave del servidor, los parámetros Diffie-Hellman, \
-y la clave HMAC se generarán ahora."
+    if [[ -n "${ECDSA_MAP["${pivpnENCRYPT}"]}" ]]; then
+      echo "::: [INFO] Asignando identificador de curva elíptica: ${ECDSA_MAP["${pivpnENCRYPT}"]}"
+      sed_pattern="s/#set_var EASYRSA_CURVE.*/set_var EASYRSA_CURVE ${ECDSA_MAP["${pivpnENCRYPT}"]}/"
+      if ! ${SUDOE} sed -i "${sed_pattern}" pki/vars; then
+        err "Error al fijar la curva elíptica EASYRSA_CURVE."
+        exit 1
+      fi
     else
-      whiptail \
-        --msgbox \
-        --backtitle "Configurar OpenVPN" \
-        --title "Información del Servidor" --ok-button "Aceptar" \
-        "La clave del servidor, los parámetros Diffie-Hellman, \
-y la clave HMAC se generarán ahora." \
-        "${r}" \
-        "${c}"
-    fi
-  elif [[ "${pivpnCERT}" == "ec" ]] \
-    || [[ "${pivpnCERT}" == "rsa" && "${USE_PREDEFINED_DH_PARAM}" -eq 1 ]]; then
-    if [[ "${runUnattended}" == 'true' ]]; then
-      echo "::: La clave del servidor y la clave HMAC se generarán ahora."
-    else
-      whiptail \
-        --msgbox \
-  --backtitle "Configuración de Seguridad" \
-  --title "Generación de Llaves Criptográficas" --ok-button "Continuar" \
-  "El instalador procederá a generar las llaves de cifrado del servidor y la firma de seguridad HMAC. 
-
-Este proceso es automático y garantiza que tu conexión VPN sea privada y segura. Por favor, espera un momento mientras se completan las operaciones criptográficas." "${r}" "${c}"
+      err "Configuración inválida: Longitud de cifrado de curva elíptica no homologada (${pivpnENCRYPT} bits)."
+      exit 1
     fi
   fi
 
-  # Construir el servidor
-  EASYRSA_CERT_EXPIRE=3650 ${SUDOE} \
-    ./easyrsa --batch build-server-full "${SERVER_NAME}" nopass
+  # Compilación de la Autoridad de Certificación Raíz
+  echo "::: [INFO] Generando la Autoridad de Certificación (CA) del servidor de manera automatizada..."
+  if ! ${SUDOE} ./easyrsa --batch build-ca nopass &> /dev/null; then
+    err "Fallo crítico: La compilación de la entidad de certificación raíz (build-ca) ha sido rechazada."
+    exit 1
+  fi
+  echo "::: [ÉXITO] Autoridad de Certificación (CA) consolidada correctamente."
 
+  # Control de diálogos interactivos informativos según el perfil criptográfico seleccionado
+  if [[ "${pivpnCERT}" == "rsa" ]] && [[ "${USE_PREDEFINED_DH_PARAM}" -ne 1 ]]; then
+    if [[ "${runUnattended}" == 'true' ]]; then
+      echo "::: [PARAM] Modo desatendido: Procediendo con el cálculo de claves RSA, parámetros Diffie-Hellman y HMAC..."
+    else
+      whiptail \
+        --backtitle "Asistente de Configuración - PiVPN" \
+        --title "Generación de Llaves Criptográficas (RSA)" --ok-button "Continuar" \
+        --msgbox "El asistente procederá a generar la clave de identidad del servidor, los parámetros estructurales Diffie-Hellman y la llave estática HMAC.\n\nEste proceso establece las capas iniciales de protección perimetral del túnel. Por favor, espera un momento mientras se completan las operaciones matemáticas." \
+        "${r}" "${c}"
+    fi
+  elif [[ "${pivpnCERT}" == "ec" ]] || [[ "${pivpnCERT}" == "rsa" && "${USE_PREDEFINED_DH_PARAM}" -eq 1 ]]; then
+    if [[ "${runUnattended}" == 'true' ]]; then
+      echo "::: [PARAM] Modo desatendido: Procediendo con el cálculo de llaves elípticas y firma de seguridad HMAC..."
+    else
+      whiptail \
+        --backtitle "Asistente de Configuración - PiVPN" \
+        --title "Generación de Llaves Criptográficas (Cifrado Rápido)" --ok-button "Continuar" \
+        --msgbox "El instalador procederá a generar las llaves de cifrado asimétrico del servidor y la firma de control HMAC.\n\nEste proceso es totalmente automático y garantiza que tu conexión remota sea robusta, privada y ágil. Por favor, espera mientras concluyen las tareas criptográficas." \
+        "${r}" "${c}"
+    fi
+  fi
+
+  # Construcción formal de la identidad del servidor firmada por nuestra CA
+  echo "::: [INFO] Generando y firmando el par de certificados de intercambio del servidor OpenVPN..."
+  if ! EASYRSA_CERT_EXPIRE=3650 ${SUDOE} ./easyrsa --batch build-server-full "${SERVER_NAME}" nopass &> /dev/null; then
+    err "Fallo criptográfico: No se pudo generar la firma estructural del servidor mediante build-server-full."
+    exit 1
+  fi
+
+  # Gestión y cálculo de parámetros Diffie-Hellman exclusivos para perfiles RSA
   if [[ "${pivpnCERT}" == "rsa" ]]; then
     if [[ "${USE_PREDEFINED_DH_PARAM}" -eq 1 ]]; then
-      file_pattern="${pivpnFilesDir}/files/etc/openvpn"
-      file_pattern="${file_pattern}/easy-rsa/pki/ffdhe${pivpnENCRYPT}.pem"
-      # Usar parámetros Diffie-Hellman del RFC 7919 (FFDHE)
-      ${SUDOE} install -m 644 "${file_pattern}" \
-        "pki/dh${pivpnENCRYPT}.pem"
+      file_pattern="${pivpnFilesDir}/files/etc/openvpn/easy-rsa/pki/ffdhe${pivpnENCRYPT}.pem"
+      echo "::: [INFO] Inyectando parámetros predefinidos optimizados de alta seguridad (RFC 7919 FFDHE${pivpnENCRYPT})..."
+      if ! ${SUDOE} install -m 644 "${file_pattern}" "pki/dh${pivpnENCRYPT}.pem"; then
+        err "Error de archivos: No se pudo copiar o validar el archivo FFDHE preestablecido en la ruta PKI."
+        exit 1
+      fi
     else
-      # Generar intercambio de claves Diffie-Hellman
-      ${SUDOE} ./easyrsa gen-dh
-      ${SUDOE} mv pki/dh.pem "pki/dh${pivpnENCRYPT}".pem
+      echo "::: [INFO] Calculando nuevos parámetros de intercambio Diffie-Hellman (Este proceso puede tardar)..."
+      if ! ${SUDOE} ./easyrsa gen-dh &> /dev/null; then
+        err "Fallo de cómputo: No se pudieron generar los parámetros Diffie-Hellman de forma nativa."
+        exit 1
+      fi
+      if ! ${SUDOE} mv pki/dh.pem "pki/dh${pivpnENCRYPT}.pem"; then
+        err "Error de asignación: No se pudo renombrar el archivo estructurado dh.pem."
+        exit 1
+      fi
     fi
   fi
 
-  # Generar clave HMAC estática para defenderse contra DDoS
+  # Generación de la llave simétrica estática adicional para mitigar escaneos de puertos y ataques DDoS
   if [[ "${TWO_POINT_FIVE}" -eq 1 ]]; then
-    ${SUDOE} mkdir -p "/etc/openvpn/easy-rsa/pki/tc-v2"
-    ${SUDOE} openvpn --genkey tls-crypt-v2-server pki/tc-v2/server.key
+    echo "::: [INFO] Generando firma criptográfica tls-crypt-v2 para protección del canal de control..."
+    if ! ${SUDOE} mkdir -p "/etc/openvpn/easy-rsa/pki/tc-v2" || ! ${SUDOE} openvpn --genkey tls-crypt-v2-server pki/tc-v2/server.key; then
+      err "Fallo criptográfico: No se pudo inicializar o compilar la directiva de seguridad tls-crypt-v2."
+      exit 1
+    fi
   else
-    ${SUDOE} openvpn --genkey tls-auth pki/ta.key
-  fi
-
-  # Generar una Lista de Revocación de Certificados vacía
-  ${SUDOE} ./easyrsa gen-crl
-  ${SUDOE} cp pki/crl.pem /etc/openvpn/crl.pem
-
-  if ! getent passwd "${ovpnUserGroup%:*}"; then
-    if [[ "${PLAT}" == 'Alpine' ]]; then
-      ${SUDOE} adduser -SD \
-        -h /var/lib/openvpn/ \
-        -s /sbin/nologin \
-        "${ovpnUserGroup%:*}"
-    else
-      ${SUDOE} useradd \
-        --system \
-        --home /var/lib/openvpn/ \
-        --shell /usr/sbin/nologin \
-        "${ovpnUserGroup%:*}"
+    echo "::: [INFO] Generando firma criptográfica tls-auth (HMAC) estándar de protección..."
+    if ! ${SUDOE} openvpn --genkey tls-auth pki/ta.key; then
+      err "Fallo criptográfico: La creación del token estático tls-auth ha sido rechazada."
+      exit 1
     fi
   fi
 
-  ${SUDOE} chown "${ovpnUserGroup}" /etc/openvpn/crl.pem
+  # Generación e inicialización de la lista de revocación de certificados vacía (CRL)
+  echo "::: [INFO] Inicializando una Lista de Revocación de Certificados (CRL) limpia..."
+  if ! ${SUDOE} ./easyrsa gen-crl &> /dev/null || ! ${SUDOE} cp pki/crl.pem /etc/openvpn/crl.pem; then
+    err "Fallo de publicación: No se pudo compilar o escribir la CRL en /etc/openvpn/crl.pem."
+    exit 1
+  fi
 
-  # Escribir el archivo de configuración para el servidor usando el archivo template.txt
-  ${SUDO} install -m 644 \
-    "${pivpnFilesDir}/files/etc/openvpn/server_config.txt" \
-    /etc/openvpn/server.conf
+  # Verificación y aprovisionamiento seguro de las identidades de aislamiento del sistema (sandboxing)
+  target_user="${ovpnUserGroup%:*}"
+  echo "::: [INFO] Verificando la presencia de la identidad de confinamiento del demonio: '${target_user}'..."
+  if ! getent passwd "${target_user}" &> /dev/null; then
+    echo "::: [INFO] Cuenta no detectada. Creando usuario de sistema desprivilegiado '${target_user}'..."
+    if [[ "${PLAT}" == 'Alpine' ]]; then
+      if ! ${SUDOE} adduser -SD -h /var/lib/openvpn/ -s /sbin/nologin "${target_user}"; then
+        err "No se pudo crear el usuario desprivilegiado en el ecosistema Alpine Linux."
+        exit 1
+      fi
+    else
+      if ! ${SUDOE} useradd --system --home /var/lib/openvpn/ --shell /usr/sbin/nologin "${target_user}"; then
+        err "No se pudo estructurar el usuario de confinamiento seguro mediante useradd."
+        exit 1
+      fi
+    fi
+  fi
 
-  # Aplicar configuraciones DNS del cliente
-  ${SUDOE} sed -i \
-    "0,/\(dhcp-option DNS \)/ s/\(dhcp-option DNS \).*/\1${pivpnDNS1}\"/" \
-    /etc/openvpn/server.conf
+  if ! ${SUDOE} chown "${ovpnUserGroup}" /etc/openvpn/crl.pem; then
+    err "Error de privilegios: No se pudo ceder el control de la CRL al grupo del servicio (${ovpnUserGroup})."
+    exit 1
+  fi
+
+  # Despliegue formal del archivo de configuración maestro del servidor
+  template_file="${pivpnFilesDir}/files/etc/openvpn/server_config.txt"
+  echo "::: [INFO] Desplegando archivo maestro de configuración 'server.conf' desde la plantilla..."
+  if [[ ! -f "${template_file}" ]]; then
+    err "Fallo de origen: La plantilla base no se localizó en la ruta esperada: ${template_file}"
+    exit 1
+  fi
+
+  if ! ${SUDO} install -m 644 "${template_file}" /etc/openvpn/server.conf; then
+    err "Fallo de escritura: No se pudo instalar el archivo maestro en /etc/openvpn/server.conf."
+    exit 1
+  fi
+
+  # ==============================================================================
+  #                     FASE DE PARCHEO Y AJUSTE DE DIRECTIVAS
+  # ==============================================================================
+  echo "::: [INFO] Aplicando directivas DNS de cliente en la topología de red..."
+  if ! ${SUDO} sed -i "0,/\(dhcp-option DNS \)/ s/\(dhcp-option DNS \).*/\1${pivpnDNS1}\"/" /etc/openvpn/server.conf; then
+    err "Error al escribir el DNS primario."
+    exit 1
+  fi
 
   if [[ -z "${pivpnDNS2}" ]]; then
-    ${SUDOE} sed -i '/\(dhcp-option DNS \)/{n;N;d}' /etc/openvpn/server.conf
+    # Limpieza de líneas sobrantes de DNS secundario si no fue configurado por el usuario
+    ${SUDO} sed -i '/\(dhcp-option DNS \)/{n;N;d}' /etc/openvpn/server.conf
   else
-    ${SUDOE} sed -i \
-      "0,/\(dhcp-option DNS \)/! s/\(dhcp-option DNS \).*/\1${pivpnDNS2}\"/" \
-      /etc/openvpn/server.conf
+    if ! ${SUDO} sed -i "0,/\(dhcp-option DNS \)/! s/\(dhcp-option DNS \).*/\1${pivpnDNS2}\"/" /etc/openvpn/server.conf; then
+      err "Error al escribir el DNS secundario."
+      exit 1
+    fi
   fi
 
-  # Establecer el tamaño de la clave de encriptación del usuario
-  ${SUDO} sed -i \
-    "s#\\(dh /etc/openvpn/easy-rsa/pki/dh\\).*#\\1${pivpnENCRYPT}.pem#" \
-    /etc/openvpn/server.conf
-
+  # Integración condicional exclusiva para cifrado tls-crypt-v2
   if [[ "${pivpnTLSPROT}" == "tls-crypt-v2" ]]; then
-    # Si habilitaron 2.5 usar tls-crypt-v2 en lugar de tls-auth para cifrar el canal de control
+    echo "::: [INFO] Configurando encapsulamiento y scripts de verificación de canal tls-crypt-v2..."
     ta_path="/etc/openvpn/easy-rsa/pki/ta.key"
     tc_v2_path="/etc/openvpn/easy-rsa/pki/tc-v2/server.key"
     tc_v2_cmd_path="/opt/pivpn/openvpn/TLSCryptV2Verify.sh"
     sed_pattern='s|tls-auth '"${ta_path}"' 0|tls-crypt-v2 '"${tc_v2_path}"'\ntls-crypt-v2-verify '"${tc_v2_cmd_path}"'\nscript-security 2|'
-    ${SUDO} sed -i "${sed_pattern}" /etc/openvpn/server.conf
+    if ! ${SUDO} sed -i "${sed_pattern}" /etc/openvpn/server.conf; then
+      err "Error al parchear la directiva tls-crypt-v2 en server.conf."
+      exit 1
+    fi
   fi
 
+  # Ajustes de parámetros específicos en base al algoritmo criptográfico seleccionado
   if [[ "${pivpnCERT}" == "ec" ]]; then
-    # Si habilitaron 2.5 deshabilitar parámetros dh y especificar la
-    # curva coincidente del certificado ECDSA
-    sed_pattern="s/\(dh \/etc\/openvpn\/easy-rsa\/pki\/dh\).*/dh"
-    sed_pattern="${sed_pattern} none\necdh-curve"
-    sed_pattern="${sed_pattern} ${ECDSA_MAP["${pivpnENCRYPT}"]}/"
-    ${SUDO} sed -i \
-      "${sed_pattern}" \
-      /etc/openvpn/server.conf
+    echo "::: [INFO] Deshabilitando parámetros DH clásicos e inyectando curva elíptica: ${ECDSA_MAP["${pivpnENCRYPT}"]}"
+    sed_pattern="s/\(dh \/etc\/openvpn\/easy-rsa\/pki\/dh\).*/dh none\necdh-curve ${ECDSA_MAP["${pivpnENCRYPT}"]}/"
+    if ! ${SUDO} sed -i "${sed_pattern}" /etc/openvpn/server.conf; then
+      err "Error al inyectar los parámetros ecdh-curve en server.conf."
+      exit 1
+    fi
   elif [[ "${pivpnCERT}" == "rsa" ]]; then
-    # De lo contrario, establecer el tamaño de la clave de encriptación del usuario
-    ${SUDO} sed -i \
-      "s#\\(dh /etc/openvpn/easy-rsa/pki/dh\\).*#\\1${pivpnENCRYPT}.pem#" \
-      /etc/openvpn/server.conf
+    echo "::: [INFO] Enlazando archivo maestro de parámetros Diffie-Hellman (${pivpnENCRYPT} bits)..."
+    if ! ${SUDO} sed -i "s#\\(dh /etc/openvpn/easy-rsa/pki/dh\\).*#\\1${pivpnENCRYPT}.pem#" /etc/openvpn/server.conf; then
+      err "Error al mapear el archivo dh.pem correspondiente en server.conf."
+      exit 1
+    fi
   fi
 
-  # Aumentar la versión mínima de TLS para limitar las suites de cifrado, reduciendo la superficie de ataque
+  # Endurecimiento de la capa de transporte limitando las suites permitidas exclusivamente a TLS v1.3
   if [[ "${pivpnTLSVERS}" == "1.3" ]]; then
+    echo "::: [INFO] Elevando la versión de seguridad mínima permitida a TLS v1.3..."
     ${SUDO} sed -i "s|tls-version-min 1.2|tls-version-min 1.3|" "/etc/openvpn/server.conf"
-    ${SUDO} sed -i "s|tls-version-min 1.2|tls-version-min 1.3|" "${pivpnFilesDir}/files/etc/openvpn/easy-rsa/pki/Default.txt"
+    if [[ -f "${pivpnFilesDir}/files/etc/openvpn/easy-rsa/pki/Default.txt" ]]; then
+      ${SUDO} sed -i "s|tls-version-min 1.2|tls-version-min 1.3|" "${pivpnFilesDir}/files/etc/openvpn/easy-rsa/pki/Default.txt"
+    fi
   fi
 
-  # si modificaron la red VPN, poner el valor en server.conf
+  # Personalización de los direccionamientos, puertos y protocolos en el archivo operativo
   if [[ "${pivpnNET}" != "10.8.0.0" ]]; then
+    echo "::: [INFO] Reasignando segmento de red virtual interna a: ${pivpnNET}..."
     ${SUDO} sed -i "s/10.8.0.0/${pivpnNET}/g" /etc/openvpn/server.conf
   fi
 
-  # si modificaron la clase de subred VPN, poner el valor en server.conf
   if [[ "$(cidrToMask "${subnetClass}")" != "255.255.255.0" ]]; then
-    ${SUDO} sed -i \
-      "s/255.255.255.0/$(cidrToMask "${subnetClass}")/g" \
-      /etc/openvpn/server.conf
+    echo "::: [INFO] Modificando máscara de subred asignada a: $(cidrToMask "${subnetClass}")..."
+    ${SUDO} sed -i "s/255.255.255.0/$(cidrToMask "${subnetClass}")/g" /etc/openvpn/server.conf
   fi
 
-  # si modificaron el puerto, poner el valor en server.conf
   if [[ "${pivpnPORT}" -ne 1194 ]]; then
+    echo "::: [INFO] Reasignando puerto de escucha del servidor a: ${pivpnPORT}..."
     ${SUDO} sed -i "s/1194/${pivpnPORT}/g" /etc/openvpn/server.conf
   fi
 
-  # si modificaron el protocolo, poner el valor en server.conf
   if [[ "${pivpnPROTO}" != "udp" ]]; then
+    echo "::: [INFO] Transmutando capa de transporte de red de UDP a TCP..."
     ${SUDO} sed -i "s/proto udp/proto tcp/g" /etc/openvpn/server.conf
   fi
 
+  # Inyección del sufijo del dominio de búsqueda local si corresponde
   if [[ -n "${pivpnSEARCHDOMAIN}" ]]; then
-    sed_pattern="0,/\\(.*dhcp-option.*\\)/"
-    sed_pattern="${sed_pattern}s//push \"dhcp-option "
-    sed_pattern="${sed_pattern}DOMAIN ${pivpnSEARCHDOMAIN}\" \\n&/"
-    ${SUDO} sed -i \
-      "${sed_pattern}" \
-      /etc/openvpn/server.conf
+    echo "::: [INFO] Registrando el sufijo de dominio de búsqueda DNS para los clientes: ${pivpnSEARCHDOMAIN}..."
+    sed_pattern="0,/\\(.*dhcp-option.*\\)/s//push \"dhcp-option DOMAIN ${pivpnSEARCHDOMAIN}\" \\n&/"
+    ${SUDO} sed -i "${sed_pattern}" /etc/openvpn/server.conf
   fi
 
-  # escribir los certificados del servidor en el archivo conf
-  ${SUDO} sed -i \
-    "s#\\(key /etc/openvpn/easy-rsa/pki/private/\\).*#\\1${SERVER_NAME}.key#" \
-    /etc/openvpn/server.conf
-  ${SUDO} sed -i \
-    "s#\\(cert /etc/openvpn/easy-rsa/pki/issued/\\).*#\\1${SERVER_NAME}.crt#" \
-    /etc/openvpn/server.conf
+  # Vinculación final del par de llaves generadas del servidor al archivo estructural
+  echo "::: [INFO] Enlazando llaves criptográficas únicas y certificados firmados..."
+  ${SUDO} sed -i "s#\\(key /etc/openvpn/easy-rsa/pki/private/\\).*#\\1${SERVER_NAME}.key#" /etc/openvpn/server.conf
+  ${SUDO} sed -i "s#\\(cert /etc/openvpn/easy-rsa/pki/issued/\\).*#\\1${SERVER_NAME}.crt#" /etc/openvpn/server.conf
 
-  # En Alpine Linux, el archivo de configuración predeterminado para OpenVPN es
-  # "/etc/openvpn/openvpn.conf".
-  # Para evitar fallos a través de OpenRC, creamos un enlace simbólico a este archivo.
+  # Integración adaptativa exclusiva para sistemas basados en OpenRC (Alpine Linux)
   if [[ "${PLAT}" == 'Alpine' ]]; then
-    ${SUDO} ln -sfT \
-      /etc/openvpn/server.conf \
-      /etc/openvpn/openvpn.conf \
-      > /dev/null
+    echo "::: [INFO] Entorno Alpine Linux detectado: Inicializando enlace simbólico adaptativo para OpenRC..."
+    if ! ${SUDO} ln -sfT /etc/openvpn/server.conf /etc/openvpn/openvpn.conf > /dev/null; then
+      echo "::: [ADVERTENCIA] No se pudo generar el enlace simbólico adaptativo en /etc/openvpn/openvpn.conf."
+    fi
   fi
+
+  echo "::: [ÉXITO] Arquitectura estructural e identidades de OpenVPN consolidadas de forma exitosa."
 }
 
 confOVPN() {
