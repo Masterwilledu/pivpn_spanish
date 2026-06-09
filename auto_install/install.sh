@@ -1150,15 +1150,23 @@ installDependentPackages() {
 }
 
 welcomeDialogs() {
+  # ------------------------------------------------------------------------------
+  # CASO 1: ENTRADA EN MODO DESATENDIDO / AUTOMATIZADO
+  # ------------------------------------------------------------------------------
   if [[ "${runUnattended}" == 'true' ]]; then
-    echo "::: Instalador Automatizado de PiVPN"
-    echo -n "::: Este instalador transformará tu host ${PLAT} en un "
-    echo "servidor OpenVPN o WireGuard!"
-    echo "::: Iniciando interfaz de red"
+    echo "::: [INFO] Modo desatendido activo. Iniciando el instalador automatizado de PiVPN..."
+    echo "::: [INFO] Transformando el entorno local '${PLAT}' en un servidor VPN seguro..."
+    echo "::: [INFO] Inicializando la evaluación de interfaces de red..."
     return
   fi
 
-  # CAMBIO: Se ha reestructurado el mensaje de bienvenida para que sea más directo, estético y use un tono profesional de bienvenida al asistente en español ()
+  # ------------------------------------------------------------------------------
+  # CASO 2: ENTRADA EN MODO INTERACTIVO (INTERFAZ WHIPTAIL)
+  # ------------------------------------------------------------------------------
+  # TRAZABILIDAD: Registro de auditoría previo al lanzamiento de la interfaz gráfica
+  echo "::: [INFO] Abriendo el cuadro de diálogo de bienvenida en la terminal..."
+
+  # DIÁLOGO: Presentación formal del asistente interactivo traducido al español
   whiptail \
     --backtitle "Asistente de Instalación PiVPN" \
     --title "Bienvenido a PiVPN en Español" --ok-button "Comenzar" \
@@ -1166,13 +1174,19 @@ welcomeDialogs() {
 
 PiVPN automatiza las configuraciones complejas de red y seguridad, permitiéndote desplegar un servidor seguro en cuestión de minutos, ideal tanto para Raspberry Pi como para servidores locales o virtuales basados en Debian y Ubuntu." "${r}" "${c}"
 
-  # CAMBIO: Se ha pulido la explicación sobre la IP estática. Ahora aclara que la IP del servidor no debe cambiar para evitar que los clientes externos pierdan la conexión, y presenta las opciones de red de manera más clara ()
+  # TRAZABILIDAD: Confirmación de paso a la sección de requisitos de red
+  echo "::: [INFO] El usuario ha iniciado el asistente interactivo. Evaluando prerrequisitos..."
+
+  # DIÁLOGO: Explicación de la importancia de la persistencia de direccionamiento IP
   whiptail \
     --backtitle "Configuración de Red Local" \
     --title "Requisito: Dirección IP Fija (Estática)" --ok-button "Aceptar" \
     --msgbox "Para que tus dispositivos puedan conectarse de forma remota, este servidor necesita una dirección IP local fija que no cambie con el tiempo.
 
 A continuación, evaluaremos tu conexión de red actual. Podrás elegir mantener los parámetros que ya tienes asignados por DHCP o editarlos manualmente si lo consideras necesario." "${r}" "${c}"
+
+  # TRAZABILIDAD: Confirmación final para dar paso al análisis de adaptadores físicos
+  echo "::: [INFO] Explicación de IP estática aceptada por el usuario. Pasando al módulo de red."
 }
 
 
