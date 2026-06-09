@@ -1891,44 +1891,57 @@ setStaticIPv4() {
 }
 
 chooseUser() {
-  # Elegir el usuario para los archivos ovpn
+  # ==============================================================================
+  #         SELECCIÓN / CREACIÓN DEL USUARIO DE CONFIGURACIÓN VPN
+  # ==============================================================================
+  # Define o crea el usuario local no privilegiado (no-root) bajo cuya ruta home
+  # se almacenarán y custodiarán los perfiles y certificados criptográficos (.ovpn / .conf).
+
+  local numUsers
+  local availableUsers
+  local install_home
+
+  # ------------------------------------------------------------------------------
+  # FLUJO A: GESTIÓN EN MODO DESATENDIDO / AUTOMATIZADO
+  # ------------------------------------------------------------------------------
   if [[ "${runUnattended}" == 'true' ]]; then
+    echo "::: [INFO] Modo desatendido activo. Validando privilegios de usuario..."
+
     if [[ -z "${install_user}" ]]; then
-      if [[ "$(awk -F ':' \
-        'BEGIN {count=0} $3>=1000 && $3<=60000 { count++ } END{ print count }' \
-        /etc/passwd)" -eq 1 ]]; then
-        install_user="$(awk -F ':' \
-          '$3>=1000 && $3<=60000 {print $1}' \
-          /etc/passwd)"
-        echo -n "::: No se especificó ningún usuario, pero solo ${install_user} está disponible, "
-        echo "usándolo"
+      # Contar cuántos usuarios reales con UID estándar (1000-60000) existen en el sistema
+      numUsers="$(awk -F ':' 'BEGIN {count=0} $3>=1000 && $3<=60000 { count++ } END{ print count }' /etc/passwd)"
+
+      if [[ "${numUsers}" -eq 1 ]]; then
+        install_user="$(awk -F ':' '$3>=1000 && $3<=60000 {print $1}' /etc/passwd)"
+        echo "::: [INFO] No se especificó usuario explícito. Detectado único usuario válido: '${install_user}'. Asignándolo de forma automática."
       else
-        err "::: No se especificó ningún usuario"
+        err "Error desatendido: No se especificó la variable 'install_user' y existen múltiples o ninguna cuenta de usuario válida en el sistema."
         exit 1
       fi
     else
-      if awk -F':' '$3>=1000 && $3<=60000 {print $1}' /etc/passwd \
-        | grep -qw "${install_user}"; then
-        echo "::: ${install_user} contendrá los archivos de configuración de tus clientes VPN."
+      # Si el usuario fue provisto, verificar si ya existe en la base de datos de cuentas locales
+      if awk -F':' '$3>=1000 && $3<=60000 {print $1}' /etc/passwd | grep -qw "${install_user}"; then
+        echo "::: [INFO] El usuario especificado '${install_user}' ha sido validado. Alojará las configuraciones de los clientes."
       else
-        echo "::: El usuario ${install_user} no existe, creando..."
+        echo "::: [AVISO] El usuario solicitado '${install_user}' no existe en el sistema anfitrión. Procediendo a su aprovisionamiento..."
 
         if [[ "${PLAT}" == 'Alpine' ]]; then
-          ${SUDO} adduser -s /bin/bash "${install_user}"
+          ${SUDO} adduser -s /bin/bash -D "${install_user}"
           ${SUDO} addgroup "${install_user}" wheel
         else
           ${SUDO} useradd -ms /bin/bash "${install_user}"
         fi
 
-        echo -n "::: Usuario creado sin contraseña, "
-        echo "por favor ejecuta 'sudo passwd ${install_user}' para crear una"
+        echo "::: [ÉXITO] Usuario '${install_user}' creado de forma correcta sin contraseña asignada."
+        echo "::: [AVISO] IMPORTANTE: Recuerda establecer una contraseña segura ejecutando manualmente: 'sudo passwd ${install_user}'"
       fi
     fi
 
-    install_home="$(grep -m1 "^${install_user}:" /etc/passwd \
-      | cut -d ':' -f 6)"
+    # Resolver la ruta del directorio HOME asignada al usuario seleccionado
+    install_home="$(awk -F: -v user="${install_user}" '$1==user {print $6}' /etc/passwd)"
     install_home="${install_home%/}"
 
+    # Persistencia de variables de entorno del despliegue
     {
       echo "install_user=${install_user}"
       echo "install_home=${install_home}"
@@ -1936,95 +1949,121 @@ chooseUser() {
     return
   fi
 
-  # Explicar el usuario local en el S.O.
+  # ------------------------------------------------------------------------------
+  # FLUJO B: ASISTENTE INTERACTIVO (GRÁFICO - WHIPTAIL)
+  # ------------------------------------------------------------------------------
+  echo "::: [INFO] Desplegando advertencia informativa sobre privilegios de almacenamiento..."
+
+  # INTERFAZ INTERACTIVA: Cuadro explicativo de roles de seguridad (Corrección de duplicación de flag --msgbox)
   whiptail \
-    --msgbox \
-    --backtitle "Gestión de Usuarios del Sistema" \
-    --title "Perfil de Almacenamiento VPN" --ok-button "Entendido" \
-    --msgbox "El instalador necesita asociar los perfiles de los clientes VPN (archivos .ovpn o .conf) a un usuario del sistema que no sea 'root'.
+    --backtitle "Gestión de Usuarios del Sistema - PiVPN" \
+    --title "Perfil de Almacenamiento VPN" \
+    --ok-button "Entendido, Continuar" \
+    --msgbox "Por motivos estrictos de seguridad y privilegios mínimos, este instalador requiere asociar las configuraciones y llaves de cifrado (.ovpn o .conf) a una cuenta de usuario estándar del sistema operativo que no sea 'root'.\n\nA continuación, se te presentará la lista de usuarios locales para que selecciones el encargado de custodiar estos perfiles." \
+    "${r}" "${c}"
 
-A continuación, selecciona de la lista el usuario local que administrará estas configuraciones." "${r}" "${c}"
-  # Primero, verifiquemos si hay un usuario disponible.
-  numUsers="$(awk -F ':' \
-    'BEGIN {count=0} $3>=1000 && $3<=60000 { count++ } END{ print count }' \
-    /etc/passwd)"
+  # Escaneo inicial y conteo formal de cuentas de usuario no root
+  numUsers="$(awk -F ':' 'BEGIN {count=0} $3>=1000 && $3<=60000 { count++ } END{ print count }' /etc/passwd)"
 
+  # CONGENCIENCIA INTERACTIVA: Si el sistema está complemente limpio y carece de usuarios estándar
   if [[ "${numUsers}" -eq 0 ]]; then
-    # No tenemos un usuario, vamos a pedir añadir uno.
+    echo "::: [AVISO] No se han encontrado cuentas de usuario estándar en el rango UID tradicional. Solicitando creación..."
+    
+    local userToAdd
     if userToAdd="$(whiptail \
-      --title "Elegir un usuario local del S.O." --ok-button "Aceptar" --cancel-button "Cancelar" \
-      --inputbox \
-      "No se encontró ninguna cuenta de usuario que no sea root. Escribe un nombre de usuario." \
-      "${r}" \
-      "${c}" \
+      --backtitle "Gestión de Usuarios del Sistema - PiVPN" \
+      --title "Crear Nuevo Usuario Local" \
+      --ok-button "Crear Usuario" \
+      --cancel-button "Cancelar e Interrumpir" \
+      --inputbox "No se ha detectado ninguna cuenta de usuario local válida (no-root) en este sistema operativo.\n\nPor favor, introduce un nombre para crear un nuevo usuario administrador de configuraciones:" \
+      "${r}" "${c}" \
       3>&1 1>&2 2>&3)"; then
-      # See https://askubuntu.com/a/667842/459815
+      
+      local PASSWORD
       PASSWORD="$(whiptail \
-        --backtitle "Gestión de Usuarios del Sistema" \
-        --title "Credenciales del Nuevo Usuario" \
-        --passwordbox \
-        "Asigna una contraseña segura para la nueva cuenta de usuario:" \
-        "${r}" "${c}" 3>&1 1>&2 2>&3)"
-      CRYPT="$(perl \
-        -e 'printf("%s\n", crypt($ARGV[0], "password"))' "${PASSWORD}")"
+        --backtitle "Gestión de Usuarios del Sistema - PiVPN" \
+        --title "Contraseña del Nuevo Usuario" \
+        --ok-button "Asignar Contraseña" \
+        --cancel-button "Cancelar" \
+        --passwordbox "Establece una contraseña de acceso segura para la cuenta recién introducida ('${userToAdd}'):" \
+        "${r}" "${c}" \
+        3>&1 1>&2 2>&3)"
+
+      echo "::: [INFO] Registrando usuario '${userToAdd}' en el sistema utilizando mecanismos criptográficos nativos..."
 
       if [[ "${PLAT}" == 'Alpine' ]]; then
         if ${SUDO} adduser -Ds /bin/bash "${userToAdd}"; then
           ${SUDO} addgroup "${userToAdd}" wheel
-
-          ${SUDO} chpasswd <<< "${userToAdd}:${PASSWORD}"
-          ${SUDO} passwd -u "${userToAdd}"
-
-          echo "Exitoso"
+          echo "${userToAdd}:${PASSWORD}" | ${SUDO} chpasswd
+          ${SUDO} passwd -u "${userToAdd}" > /dev/null 2>&1
+          echo "::: [ÉXITO] Usuario '${userToAdd}' creado y configurado correctamente en Alpine Linux."
           ((numUsers += 1))
         else
+          err "Fallo crítico al intentar ejecutar 'adduser' en el entorno de Alpine."
           exit 1
         fi
       else
-        if ${SUDO} useradd -mp "${CRYPT}" -s /bin/bash "${userToAdd}"; then
-          echo "Exitoso"
+        # OPTIMIZACIÓN DE SEGURIDAD: Sustitución de Perl + Salt estático por chpasswd nativo del sistema
+        if ${SUDO} useradd -m -s /bin/bash "${userToAdd}"; then
+          echo "${userToAdd}:${PASSWORD}" | ${SUDO} chpasswd
+          echo "::: [ÉXITO] Usuario '${userToAdd}' creado y configurado correctamente en el sistema anfitrión."
           ((numUsers += 1))
         else
+          err "Fallo crítico al intentar ejecutar 'useradd' en la distribución."
           exit 1
         fi
       fi
     else
+      err "El usuario canceló la fase mandatoria de creación de cuenta local. Abortando instalación."
       exit 1
     fi
   fi
 
+  # ------------------------------------------------------------------------------
+  # CONSTRUCCIÓN DINÁMICA DE LA LISTA DE RADIOLIST (SELECCIÓN DE USUARIO)
+  # ------------------------------------------------------------------------------
+  echo "::: [INFO] Construyendo matriz dinámica de selección para la interfaz visual..."
   availableUsers="$(awk -F':' '$3>=1000 && $3<=60000 {print $1}' /etc/passwd)"
+  
   local userArray=()
   local firstloop=1
+  local mode
 
   while read -r line; do
+    [[ -z "${line}" ]] && continue
     mode="OFF"
-
     if [[ "${firstloop}" -eq 1 ]]; then
       firstloop=0
-      mode="ON"
+      mode="ON" # Pre-marcar por defecto el primer elemento de la lista para facilitar la UX
     fi
-
-    userArray+=("${line}" "" "${mode}")
+    userArray+=("${line}" "Usuario local del sistema" "${mode}")
   done <<< "${availableUsers}"
 
-  chooseUserCmd=(whiptail
-    --backtitle "Gestión de Usuarios del Sistema" \
-    --title "Selección de Usuario Local" --ok-button "Seleccionar" --cancel-button "Cancelar" \
+  # Inicialización estructurada del comando Whiptail Radiolist
+  local chooseUserCmd=(
+    whiptail
+    --backtitle "Gestión de Usuarios del Sistema - PiVPN"
+    --title "Selección de Usuario Local"
+    --ok-button "Confirmar Selección"
+    --cancel-button "Cancelar e Interrumpir"
     --separate-output
-    --radiolist \
-    "Selecciona la cuenta que custodiará los certificados VPN (presiona la tecla espacio para marcar):" \
-    "${r}" "${c}" "${numUsers}")
+    --radiolist "Selecciona la cuenta de usuario encargada de custodiar las llaves y certificados criptográficos de tus clientes VPN:\n(Usa las flechas de dirección para navegar y la barra 'Espacio' para marcar tu opción)"
+    "${r}" "${c}" "${numUsers}"
+  )
 
-  if chooseUserOptions=$("${chooseUserCmd[@]}" \
-    "${userArray[@]}" \
-    2>&1 > /dev/tty); then
+  echo "::: [INFO] Desplegando selector interactivo de cuentas disponibles..."
+  local chooseUserOptions
+  if chooseUserOptions=$("${chooseUserCmd[@]}" "${userArray[@]}" 2>&1 > /dev/tty); then
+    
+    local desiredUser
     for desiredUser in ${chooseUserOptions}; do
-      install_user=${desiredUser}
-      echo "::: Usando el usuario: ${install_user}"
-      install_home=$(grep -m1 "^${install_user}:" /etc/passwd \
-        | cut -d ':' -f 6)
-      install_home=${install_home%/} # eliminar la posible barra diagonal final
+      install_user="${desiredUser}"
+      
+      # Extracción optimizada y limpia de la ruta del directorio HOME
+      install_home="$(awk -F: -v user="${install_user}" '$1==user {print $6}' /etc/passwd)"
+      install_home="${install_home%/}"
+
+      echo "::: [ÉXITO] Usuario del ecosistema seleccionado formalmente: ${install_user} (Ruta base: ${install_home})"
 
       {
         echo "install_user=${install_user}"
@@ -2032,7 +2071,7 @@ A continuación, selecciona de la lista el usuario local que administrará estas
       } >> "${tempsetupVarsFile}"
     done
   else
-    err "::: Cancelar seleccionado, saliendo...."
+    err "El usuario interrumpió la pantalla de asignación de perfil local. Abortando proceso."
     exit 1
   fi
 }
