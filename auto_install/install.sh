@@ -1037,73 +1037,116 @@ preconfigurePackages() {
 }
 
 installDependentPackages() {
-  # Instalar paquetes pasados a través del arreglo de argumentos
-  # Sin spinner - entra en conflicto con set -e
+  # ==============================================================================
+  #       INSTALACIÓN CONTROLADA DE DEPENDENCIAS DEL SISTEMA (SIN SPINNER)
+  # ==============================================================================
+  # Nota técnica: Se prescinde del indicador de carga (spinner) en este bloque debido
+  # a conflictos de concurrencia y flujo con la directiva estricta 'set -e'.
+  
   local FAILED=0
   local APTLOGFILE
+  local is_installed
+  local i
   declare -a TO_INSTALL=()
   declare -a argArray1=("${!1}")
 
+  echo ":::"
+  echo "::: [INFO] Iniciando el análisis y validación de las dependencias requeridas..."
+
+  # ------------------------------------------------------------------------------
+  # FASE 1: EVALUACIÓN DE PAQUETES PREEXISTENTES
+  # ------------------------------------------------------------------------------
   for i in "${argArray1[@]}"; do
-    echo -n ":::    Dependencia: ${i}..."
+    is_installed=false
 
     if [[ "${PKG_MANAGER}" == 'apt-get' ]]; then
-      if dpkg-query -W -f='${Status}' "${i}" 2> /dev/null \
-        | grep -q "ok installed"; then
-        echo " [Detectada]"
-      else
-        echo " [No detectada - Marcada para instalar]"
-        # Añadir este paquete a la lista de paquetes en el arreglo de argumentos que
-        # necesitan ser instalados
-        TO_INSTALL+=("${i}")
+      if dpkg-query -W -f='${Status}' "${i}" 2> /dev/null | grep -q "ok installed"; then
+        is_installed=true
       fi
     elif [[ "${PKG_MANAGER}" == 'apk' ]]; then
       if eval "${SUDO} ${CHECK_PKG_INSTALLED} ${i}" &> /dev/null; then
-        echo " [Detectada]"
-      else
-        echo " [No detectada - Marcada para instalar]"
-        # Añadir este paquete a la lista de paquetes en el arreglo de argumentos que
-        # necesitan ser instalados
-        TO_INSTALL+=("${i}")
+        is_installed=true
       fi
+    fi
+
+    if ${is_installed}; then
+      echo "::: [INFO] Dependencia: ${i} -> [✓ DETECTADA] (Ya se encuentra instalada)."
+    else
+      echo "::: [INFO] Dependencia: ${i} -> [✗ NO DETECTADA] (Marcada para instalación)."
+      TO_INSTALL+=("${i}")
     fi
   done
 
+  # Cláusula de guarda: Si todas las dependencias están resueltas, finalizar limpiamente
+  if [[ "${#TO_INSTALL[@]}" -eq 0 ]]; then
+    echo "::: [ÉXITO] Todas las dependencias ya están totalmente satisfechas. No se requieren cambios."
+    return 0
+  fi
+
+  # ------------------------------------------------------------------------------
+  # FASE 2: PROCESO DE INSTALACIÓN Y CAPTURA DE LOGS
+  # ------------------------------------------------------------------------------
+  echo ":::"
+  echo "::: [INFO] Procediendo a instalar las dependencias faltantes: ${TO_INSTALL[*]}"
+  
+  # Creación segura del archivo temporal para el registro de trazas
   APTLOGFILE="$(${SUDO} mktemp)"
+  
+  # SOLUCIÓN DE BUG CRÍTICO: Se separa la ejecución por gestor de paquetes. 
+  # Para 'apt-get', PKG_INSTALL es un arreglo nativo y expandirlo como cadena simple 
+  # omitía los parámetros esenciales (--yes --no-install-recommends install).
+  # Además, se redirige el flujo (stdout/stderr) para que el archivo de log no quede vacío.
+  if [[ "${PKG_MANAGER}" == 'apt-get' ]]; then
+    ${SUDO} "${PKG_INSTALL[@]}" "${TO_INSTALL[@]}" > "${APTLOGFILE}" 2>&1
+  elif [[ "${PKG_MANAGER}" == 'apk' ]]; then
+    # shellcheck disable=SC2086
+    ${SUDO} ${PKG_INSTALL} "${TO_INSTALL[@]}" > "${APTLOGFILE}" 2>&1
+  fi
 
-  # shellcheck disable=SC2086
-  ${SUDO} ${PKG_INSTALL} "${TO_INSTALL[@]}"
-
+  # ------------------------------------------------------------------------------
+  # FASE 3: VERIFICACIÓN POST-INSTALACIÓN Y AUDITORÍA
+  # ------------------------------------------------------------------------------
+  echo "::: [INFO] Verificando el resultado de las operaciones..."
   for i in "${TO_INSTALL[@]}"; do
+    is_installed=false
+
     if [[ "${PKG_MANAGER}" == 'apt-get' ]]; then
-      if dpkg-query -W -f='${Status}' "${i}" 2> /dev/null \
-        | grep -q "ok installed"; then
-        echo ":::    -> ${i} instalado con éxito."
-        # Añadir este paquete a la lista total de paquetes que realmente fueron
-        # instalados por el script
-        INSTALLED_PACKAGES+=("${i}")
-      else
-        echo ":::    ¡Fallo al instalar ${i}!"
-        ((FAILED++))
+      if dpkg-query -W -f='${Status}' "${i}" 2> /dev/null | grep -q "ok installed"; then
+        is_installed=true
       fi
     elif [[ "${PKG_MANAGER}" == 'apk' ]]; then
       if eval "${SUDO} ${CHECK_PKG_INSTALLED} ${i}" &> /dev/null; then
-        echo ":::    -> ${i} instalado con éxito."
-        # Añadir este paquete a la lista total de paquetes que realmente fueron
-        # instalados por el script
-        INSTALLED_PACKAGES+=("${i}")
-      else
-        echo ":::    ¡Fallo al instalar ${i}!"
-        ((FAILED++))
+        is_installed=true
       fi
+    fi
+
+    if ${is_installed}; then
+      echo "::: [ÉXITO] -> El paquete '${i}' se ha instalado correctamente."
+      # Registro dinámico en la lista global para evitar purgar utilidades del usuario al desinstalar
+      INSTALLED_PACKAGES+=("${i}")
+    else
+      echo "::: [ERROR] -> ¡Fallo crítico al intentar instalar el paquete '${i}'!" >&2
+      ((FAILED++))
     fi
   done
 
+  # ------------------------------------------------------------------------------
+  # FASE 4: CONTROL DE ERRORES Y LIMPIEZA DE RESIDUOS (GARBAGE COLLECTION)
+  # ------------------------------------------------------------------------------
   if [[ "${FAILED}" -gt 0 ]]; then
-    echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]:" >&2
+    echo ":::" >&2
+    echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')] [ERROR CRÍTICO]: Falló la instalación de dependencias del sistema." >&2
+    echo "::: [DETALLE DEL LOG DEL GESTOR DE PAQUETES]:" >&2
     ${SUDO} cat "${APTLOGFILE}" >&2
+    
+    # Saneamiento preventivo de archivos temporales propiedad de root antes de abortar
+    ${SUDO} rm -f "${APTLOGFILE}"
     exit 1
   fi
+
+  # Saneamiento del entorno en caso de éxito
+  ${SUDO} rm -f "${APTLOGFILE}"
+  echo "::: [ÉXITO] Despliegue y validación de dependencias finalizado sin incidencias."
 }
 
 welcomeDialogs() {
