@@ -452,13 +452,10 @@ checkExistingInstall() {
       echo "::: [PARAM] Directiva --reconfigure detectada: Se sobrescribirá por completo el despliegue actual."
       UpdateCmd="Reconfigure"
     elif [[ "${runUnattended}" == 'true' ]]; then
-      # RESOLUCIÓN TÉCNICA: En entornos de automatización desatendida (CI/CD / Provisioning),
-      # la política estándar y segura ante una colisión de software es forzar la reconfiguración
-      # implícita para evitar bloqueos del hilo de ejecución interactivo.
       echo "::: [PARAM] Colisión detectada en modo desatendido: Forzando reconfiguración automatizada."
       UpdateCmd="Reconfigure"
     else
-      # Invoca el cuadro de diálogo gráfico interactivo si el usuario está en terminal activa
+      # Invoca el cuadro de diálogo gráfico interactivo (puede devolver valores en español)
       askAboutExistingInstall "${setupVars}"
     fi
   fi
@@ -466,21 +463,22 @@ checkExistingInstall() {
   # ==============================================================================
   #            PROCESAMIENTO Y ENRUTAMIENTO DE LA ESTRATEGIA DE CONTROL
   # ==============================================================================
+# Soportamos tanto los flags internos (inglés) como las respuestas de la interfaz (español)
   case "${UpdateCmd}" in
-    Update)
+    Update|[Aa]ctualizar)
       echo "::: [INFO] Delegando el ciclo de vida al script oficial de actualización de PiVPN..."
       ${SUDO} "${pivpnScriptDir}/update.sh" "$@"
       exit "$?"
       ;;
       
-    Repair)
+    Repair|[Rr]eparar)
       echo "::: [INFO] Modo reparación activo. Restaurando variables de entorno históricas..."
       # shellcheck disable=SC1090
       . "${setupVars}"
       runUnattended=true
       ;;
       
-    Reconfigure|"")
+    Reconfigure|[Rr]econfigurar|"")
       # Flujo normal o de sobreescritura: Informamos trazabilidad y permitimos continuar al main()
       if [[ -n "${setupVars}" ]]; then
         echo "::: [INFO] Preparando los módulos para la reescritura total de la VPN."
