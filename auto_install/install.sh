@@ -1540,68 +1540,80 @@ askforcedipv6route() {
 }
 
 getStaticIPv4Settings() {
-  # Encontrar la IP de la puerta de enlace utilizada para enrutar al mundo exterior
-  CurrentIPv4gw="$(ip -o route get 192.0.2.1 \
-    | grep -oE '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' \
-    | awk 'NR==2')"
+  # ==============================================================================
+  #       RECOPILACIÓN Y CONFIGURACIÓN DE PARÁMETROS RED IPv4 ESTÁTICA
+  # ==============================================================================
+  
+  echo "::: [INFO] Analizando la topología de red local y resolviendo pasarelas..."
 
-  # Encontrar la dirección IP (y máscara de red) de la interfaz deseada
-  CurrentIPv4addr="$(ip -o -f inet address show dev "${IPv4dev}" \
-    | grep -oE '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\/[0-9]{1,2}')"
+  # OPTIMIZACIÓN: Extracción de la Puerta de Enlace (Gateway) activa de forma eficiente
+  CurrentIPv4gw="$(ip route get 192.0.2.1 2>/dev/null | grep -oE 'via [0-9]{1,3}(\.[0-9]{1,3}){3}' | awk '{print $2}')"
+  if [[ -z "${CurrentIPv4gw}" ]]; then
+    # Fallback secundario si la ruta directa no expone el tag 'via'
+    CurrentIPv4gw="$(ip route show default 2>/dev/null | awk '/default via/ {print $3; exit}')"
+  fi
 
-  # Obtener sus servidores DNS actuales
-  IPv4dns="$(grep -v "^#" /etc/resolv.conf \
-    | grep -w nameserver \
-    | grep -oE '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' \
-    | xargs)"
+  # OPTIMIZACIÓN: Extracción de la Dirección IP actual con su máscara en formato CIDR
+  CurrentIPv4addr="$(ip -o -f inet address show dev "${IPv4dev}" 2>/dev/null | awk '/inet / {print $4; exit}')"
 
+  # OPTIMIZACIÓN: Extracción limpia de servidores DNS activos excluyendo comentarios
+  IPv4dns="$(awk '/^nameserver/ {print $2}' /etc/resolv.conf | xargs)"
+
+  # Registrar traza con los datos obtenidos en la fase de descubrimiento
+  echo "::: [INFO] Datos DHCP descubiertos -> IP: ${CurrentIPv4addr} | GW: ${CurrentIPv4gw} | DNS: ${IPv4dns}"
+
+  # ------------------------------------------------------------------------------
+  # FLUJO A: GESTIÓN EN MODO DESATENDIDO / AUTOMATIZADO
+  # ------------------------------------------------------------------------------
   if [[ "${runUnattended}" == 'true' ]]; then
-    if [[ -z "${dhcpReserv}" ]] \
-      || [[ "${dhcpReserv}" -ne 1 ]]; then
+    echo "::: [INFO] Modo desatendido activo. Validando variables de red preconfiguradas..."
+    
+    if [[ -z "${dhcpReserv}" ]] || [[ "${dhcpReserv}" -ne 1 ]]; then
       local MISSING_STATIC_IPV4_SETTINGS=0
 
       if [[ -z "${IPv4addr}" ]]; then
-        echo "::: Falta la dirección IP estática"
+        echo "::: [AVISO] Configuración incompleta: Falta definir la dirección 'IPv4addr'"
         ((MISSING_STATIC_IPV4_SETTINGS++))
       fi
 
       if [[ -z "${IPv4gw}" ]]; then
-        echo "::: Falta la puerta de enlace IP estática"
+        echo "::: [AVISO] Configuración incompleta: Falta definir la puerta de enlace 'IPv4gw'"
         ((MISSING_STATIC_IPV4_SETTINGS++))
       fi
 
       if [[ "${MISSING_STATIC_IPV4_SETTINGS}" -eq 0 ]]; then
-        # Si ambas configuraciones no están vacías, verificar si son válidas y proceder
+        # Ambas variables existen; procedemos a validar su integridad formal
         if validIPAndNetmask "${IPv4addr}"; then
-          echo "::: Tu dirección IPv4 estática:    ${IPv4addr}"
+          echo "::: [INFO] IPv4 estática configurada: ${IPv4addr}"
         else
-          err "::: ${IPv4addr} no es una dirección IP válida"
+          err "La dirección IPv4 desatendida (${IPv4addr}) no es válida o carece de máscara CIDR."
           exit 1
         fi
 
         if validIP "${IPv4gw}"; then
-          echo "::: Tu puerta de enlace IPv4 estática:    ${IPv4gw}"
+          echo "::: [INFO] Puerta de enlace configurada: ${IPv4gw}"
         else
-          err "::: ${IPv4gw} no es una dirección IP válida"
+          err "La puerta de enlace IPv4 desatendida (${IPv4gw}) no es una dirección IP válida."
           exit 1
         fi
+
       elif [[ "${MISSING_STATIC_IPV4_SETTINGS}" -eq 1 ]]; then
-        # Si falta alguna de las configuraciones, considerar que la entrada es inconsistente
-        err "::: Configuraciones de IP estática incompletas"
+        err "Inconsistencia en modo desatendido: Solo se proporcionó uno de los parámetros requeridos de IP/GW."
         exit 1
+
       elif [[ "${MISSING_STATIC_IPV4_SETTINGS}" -eq 2 ]]; then
-        # Si faltan ambas configuraciones,
-        # asumir que el usuario desea usar las configuraciones actuales
+        # Si no se definieron parámetros, se heredan de forma segura los asignados por el DHCP actual
         IPv4addr="${CurrentIPv4addr}"
         IPv4gw="${CurrentIPv4gw}"
-        echo "::: Sin configuraciones de IP estática, usando las configuraciones actuales"
-        echo "::: Tu dirección IPv4 estática:    ${IPv4addr}"
-        echo "::: Tu puerta de enlace IPv4 estática:    ${IPv4gw}"
+        echo "::: [INFO] Sin parámetros explícitos asignados. Adoptando configuración DHCP por defecto."
+        echo "::: [INFO] IPv4 estática asignada: ${IPv4addr}"
+        echo "::: [INFO] Puerta de enlace asignada: ${IPv4gw}"
       fi
     else
-      echo "::: Omitiendo la configuración de la dirección IP estática"
+      echo "::: [INFO] Reserva DHCP activa declarada. Omitiendo reconfiguración local de IP estática."
     fi
 
+    # Volcado y persistencia de variables en el archivo temporal de instalación
     {
       echo "dhcpReserv=${dhcpReserv}"
       echo "IPv4addr=${IPv4addr}"
@@ -1610,160 +1622,161 @@ getStaticIPv4Settings() {
     return
   fi
 
-  local ipSettingsCorrect
-  local IPv4AddrValid
-  local IPv4gwValid
-  # Algunos usuarios reservan direcciones IP en otro servidor DHCP o en sus enrutadores,
-  # preguntemos si desean realizar algún cambio en sus interfaces.
+  # ------------------------------------------------------------------------------
+  # FLUJO B: ASISTENTE INTERACTIVO (GRAFICO - WHIPTAIL)
+  # ------------------------------------------------------------------------------
+  local ipSettingsCorrect=false
+  local IPv4AddrValid=false
+  local IPv4gwValid=false
 
+  echo "::: [INFO] Lanzando consulta interactiva sobre el método de asignación de direccionamiento..."
+
+  # INTERFAZ INTERACTIVA: Selección del Tipo de Direccionamiento (DHCP permanente vs Local)
   if whiptail \
-    --backtitle "Configuración de la Interfaz de Red" \
-    --title "Método de Asignación de IP" --yes-button "Mantener DHCP (Recomendado)" --no-button "Configurar Manualmente" \
+    --backtitle "Asistente de Configuración de Red - PiVPN" \
+    --title "Método de Asignación de IP" \
+    --yes-button "Mantener DHCP (Recomendado)" \
+    --no-button "Configurar Manualmente" \
     --defaultno \
-    --yesno "Para asegurar la estabilidad de la VPN, el servidor necesita que su IP no cambie. El asistente ha detectado los siguientes parámetros actuales:
-
-    • Dirección IP:       ${CurrentIPv4addr}
-    • Puerta de enlace:   ${CurrentIPv4gw}
-
-¿Tienes esta IP ya reservada de forma fija en la configuración de tu router (Reserva DHCP)? 
-
-• Elige 'Mantener DHCP' si ya la has reservado en tu router o si no estás seguro (es la opción más segura).
-• Elige 'Configurar Manual' si prefieres forzar una IP estática fija escribiéndola en este sistema." "${r}" "${c}"; then
+    --yesno "Para garantizar la accesibilidad permanente a tu VPN, este servidor requiere una dirección IP fija.\n\nEl asistente ha detectado los siguientes parámetros activos en tu interfaz:\n  • Dirección IP:       ${CurrentIPv4addr}\n  • Puerta de enlace:   ${CurrentIPv4gw}\n\n¿Tienes esta IP ya configurada como una 'Reserva Estática' o 'Reserva DHCP' en tu enrutador?\n\n• Elige 'Mantener DHCP' si ya has vinculado la MAC de este equipo a una IP fija en tu router (Es la opción más limpia y segura).\n• Elige 'Configurar Manualmente' si prefieres forzar una IP fija de forma estática directamente en este sistema operativo." \
+    "${r}" "${c}"; then
+    
+    # El usuario confirma que el Router se encarga de mantener la IP fija
     dhcpReserv=1
+    echo "::: [INFO] El usuario optó por mantener DHCP (Se asume existencia de Reserva DHCP externa)."
 
     {
       echo "dhcpReserv=${dhcpReserv}"
-      # En realidad no necesitamos guardarlas ya que no configuraremos una IP estática
-      # pero podrían ser útiles para la depuración
       echo "IPv4addr=${CurrentIPv4addr}"
       echo "IPv4gw=${CurrentIPv4gw}"
     } >> "${tempsetupVarsFile}"
   else
-    # Preguntar si el usuario desea usar las configuraciones de DHCP como su IP local estática
+    # El usuario desea forzar los archivos locales e independizarse del DHCP automático
+    dhcpReserv=0
+    echo "::: [INFO] El usuario ha optado por la reconfiguración manual / estática local."
+
+    # INTERFAZ INTERACTIVA: Clonación de parámetros DHCP actuales como base estática
     if whiptail \
-      --backtitle "Configuración de la Interfaz de Red" \
-      --title "Confirmación de IP Estática" --yes-button "Confirmar y Usar" --no-button "Modificar IP" \
-      --yesno "Has elegido configurar una IP estática de forma manual. 
-
-¿Deseas adoptar los parámetros de red actuales como tu IP fija definitiva o prefieres modificarlos?
-
-    • Dirección IP:       ${CurrentIPv4addr}
-    • Puerta de enlace:   ${CurrentIPv4gw}" "${r}" "${c}"; then
+      --backtitle "Asistente de Configuración de Red - PiVPN" \
+      --title "Confirmación de IP Estática" \
+      --yes-button "Confirmar y Usar" \
+      --no-button "Modificar Parámetros" \
+      --yesno "Has elegido configurar una dirección IP estática local.\n\n¿Deseas clonar y fijar de forma definitiva los parámetros actuales del sistema o prefieres modificarlos manualmente?\n\n  • Dirección IP sugerida:   ${CurrentIPv4addr}\n  • Puerta de enlace:        ${CurrentIPv4gw}" \
+      "${r}" "${c}"; then
+      
       IPv4addr="${CurrentIPv4addr}"
       IPv4gw="${CurrentIPv4gw}"
+      echo "::: [INFO] El usuario confirmó el uso de los parámetros de red actuales como IP fija local."
 
       {
         echo "IPv4addr=${IPv4addr}"
         echo "IPv4gw=${IPv4gw}"
       } >> "${tempsetupVarsFile}"
 
-# CAMBIO: Se ha reescrito por completo el texto del cuadro de diálogo sobre conflictos de IP para corregir la imprecisión técnica. Ahora explica claramente el riesgo y promueve de forma asertiva el uso de reservas DHCP en el enrutador como la mejor práctica
-whiptail \
-  --backtitle "Configuración de Red Local" \
-  --title "Aviso: Riesgo de Conflicto de IP" --ok-button "Entendido" \
-  --msgbox "Al asignar una IP fija de forma local, existe la posibilidad de que tu enrutador intente asignar esta misma dirección a otro dispositivo en el futuro, lo que provocaría un conflicto de red y desconectaría tu VPN.
-
-Para evitarlo por completo, tienes dos opciones recomendadas:
-
-1. Configurar una 'Reserva DHCP' en la interfaz de tu enrutador para asociar de forma permanente esta IP a la dirección MAC de tu servidor (la opción más limpia y recomendada).
-2. Modificar el rango de asignación DHCP de tu router para asegurarte de que esta IP quede fuera del alcance automático de los demás dispositivos.
-
-Si ya has tomado alguna de estas medidas en tu enrutador, puedes continuar sin preocuparte." "${r}" "${c}"
-      # Nada más que hacer ya que las variables ya se establecieron arriba
+      # INTERFAZ INTERACTIVA: Alerta preventiva de riesgos por colisión / solapamiento de direccionamiento
+      whiptail \
+        --backtitle "Asistente de Configuración de Red - PiVPN" \
+        --title "Aviso Crítico: Riesgo de Conflicto de IP" \
+        --ok-button "Entendido y Mitigado" \
+        --msgbox "¡Atención! Al fijar una dirección IP directamente de forma local sin avisar al router, existe la posibilidad de que el servidor DHCP de tu red asigne esta misma IP a otro dispositivo (móvil, TV, pc) en el futuro.\n\nEsto causaría un conflicto de red colapsando el acceso a tu servidor VPN.\n\nPara prevenirlo de forma permanente, asegúrate de cumplir una de estas medidas:\n1. Accede a tu router y crea una 'Reserva DHCP' para la dirección MAC de este servidor usando esta misma IP.\n2. Modifica el rango dinámico del DHCP de tu router para que tu IP estática quede excluida de las asignaciones automáticas." \
+        "${r}" "${c}"
+      
+      echo "::: [INFO] Alerta de conflicto de direccionamiento IP leída y aceptada."
     else
-      # De lo contrario, debemos pedirle al usuario que introduzca las configuraciones deseadas.
-      # Comenzar por obtener la dirección IPv4
-      # (completándola previamente con la información recopilada de DHCP)
-      # Iniciar un bucle para permitir al usuario introducir su información con la posibilidad
-      # de volver atrás y editarla si es necesario
+      # ----------------------------------------------------------------------------
+      # BUCLE DE ENTRADA MANUAL COMPLETA (IP -> GATEWAY -> VALIDACIÓN -> CONFIRMACIÓN)
+      # ----------------------------------------------------------------------------
+      echo "::: [INFO] Iniciando el bucle de captura manual de datos de red..."
+      
       until [[ "${ipSettingsCorrect}" == 'true' ]]; do
+        
+        # Sub-bucle 1: Solicitar y validar Dirección IP + Máscara (Formato CIDR requerido)
         until [[ "${IPv4AddrValid}" == 'true' ]]; do
-          # Solicitar la dirección IPv4
           if IPv4addr="$(whiptail \
-            --backtitle "Configuración Manual de la Interfaz de Red" \
-            --title "Asignar Dirección IPv4" --ok-button "Guardar" --cancel-button "Cancelar" \
-            --inputbox "Introduce la dirección IPv4 local que deseas asignar de forma fija al servidor." "${r}" "${c}" "${CurrentIPv4addr}" \
+            --backtitle "Configuración Manual de Red - PiVPN" \
+            --title "Asignar Dirección IPv4 (CIDR)" \
+            --ok-button "Guardar" \
+            --cancel-button "Cancelar Asistente" \
+            --inputbox "Introduce la dirección IPv4 local que deseas fijar de manera estática a este servidor.\n\nEs OBLIGATORIO incluir la máscara de subred en notación CIDR.\n\nEjemplo válido de red doméstica: 192.168.1.150/24\n(Donde '/24' equivale a la máscara tradicional 255.255.255.0)" \
+            "${r}" "${c}" "${CurrentIPv4addr}" \
             3>&1 1>&2 2>&3)"; then
+            
             if validIPAndNetmask "${IPv4addr}"; then
-              echo "::: Tu dirección IPv4 estática:    ${IPv4addr}"
+              echo "::: [INFO] Entrada válida de IPv4 estática: ${IPv4addr}"
               IPv4AddrValid=true
             else
-              # CAMBIO: Se mejoró el mensaje de error de IP/Máscara para explicar de forma más clara la importancia del formato CIDR (Gemini)
-          whiptail \
-            --backtitle "Configuración Manual de la Interfaz de Red" \
-            --title "Error: Formato IPv4 No Válido" --ok-button "Corregir" \
-            --msgbox "La dirección IP introducida no es válida: ${IPv4addr}
-
-Recuerda que debes incluir la máscara de red utilizando la notación CIDR.
-
-Ejemplo correcto: 192.168.1.150/24
-(Donde '/24' equivale a la máscara 255.255.255.0)" "${r}" "${c}"
-              echo "::: Dirección IPv4 no válida:    ${IPv4addr}"
+              echo "::: [AVISO] Formato IPv4 inválido provisto por el usuario: ${IPv4addr}"
+              whiptail \
+                --backtitle "Configuración Manual de Red - PiVPN" \
+                --title "Error: Formato IPv4 No Válido" \
+                --ok-button "Volver a Intentar" \
+                --msgbox "La dirección IP o máscara introducida no es válida: '${IPv4addr}'\n\nPor favor, verifica que cumpla con los rangos numéricos correctos (0-255) y que finalice con su prefijo CIDR correspondiente (Ej. /24, /22)." \
+                "${r}" "${c}"
               IPv4AddrValid=false
             fi
           else
-            # Cancelando la ventana de configuración de IPv4
-            err "::: Cancelación seleccionada. Saliendo..."
+            err "El usuario canceló la introducción manual de la dirección IPv4. Abortando instalación."
             exit 1
           fi
         done
 
+        # Sub-bucle 2: Solicitar y validar la Puerta de Enlace Predeterminada (Gateway / Router IP)
         until [[ "${IPv4gwValid}" == 'true' ]]; do
-          # Solicitar la puerta de enlace
-          # CAMBIO: Se pulió el texto de entrada para la puerta de enlace, aclarando que corresponde a la IP local del router (Gemini)
-      if IPv4gw="$(whiptail \
-        --backtitle "Configuración Manual de la Interfaz de Red" \
-        --title "Puerta de Enlace (Router)" --ok-button "Guardar" --cancel-button "Cancelar" \
-        --inputbox "Introduce la dirección IP de tu puerta de enlace predeterminada (la IP local de tu router)." "${r}" "${c}" "${CurrentIPv4gw}" \
+          if IPv4gw="$(whiptail \
+            --backtitle "Configuración Manual de Red - PiVPN" \
+            --title "Dirección de Puerta de Enlace (Router)" \
+            --ok-button "Guardar" \
+            --cancel-button "Cancelar Asistente" \
+            --inputbox "Introduce la dirección IP interna correspondiente a tu puerta de enlace predeterminada (La IP de administración local de tu Router).\n\nEste parámetro NO debe llevar máscara de subred.\n\nEjemplo común: 192.168.1.1" \
+            "${r}" "${c}" "${CurrentIPv4gw}" \
             3>&1 1>&2 2>&3)"; then
+            
             if validIP "${IPv4gw}"; then
-              echo "::: Tu puerta de enlace IPv4 estática:    ${IPv4gw}"
+              echo "::: [INFO] Entrada válida de Puerta de Enlace IPv4: ${IPv4gw}"
               IPv4gwValid=true
             else
-              # CAMBIO: Se optimizó el mensaje de error para dar una guía clara con un ejemplo típico de red doméstica (Gemini)
+              echo "::: [AVISO] Formato de puerta de enlace inválido provisto por el usuario: ${IPv4gw}"
               whiptail \
-                --backtitle "Configuración Manual de la Interfaz de Red" \
-                --title "Error: Puerta de Enlace No Válida" --ok-button "Corregir" \
-                --msgbox "La dirección IP de la puerta de enlace no es válida: ${IPv4gw}
-
-Por favor, introduce una dirección IP estándar sin máscara de red.
-
-Ejemplo típico: 192.168.1.1" "${r}" "${c}"
-              echo "::: Puerta de enlace IPv4 no válida:    ${IPv4gw}"
+                --backtitle "Configuración Manual de Red - PiVPN" \
+                --title "Error: Puerta de Enlace No Válida" \
+                --ok-button "Volver a Intentar" \
+                --msgbox "La dirección de la pasarela no cumple con el estándar IPv4: '${IPv4gw}'\n\nIntroduce una IP limpia de 4 octetos sin barras ni máscaras de subred adicionales." \
+                "${r}" "${c}"
               IPv4gwValid=false
             fi
           else
-            # Cancelando la ventana de configuración de la puerta de enlace
-            err "::: Cancelación seleccionada. Saliendo..."
+            err "El usuario canceló la introducción manual de la puerta de enlace. Abortando instalación."
             exit 1
           fi
         done
 
-        # Dar al usuario la oportunidad de revisar sus configuraciones antes de continuar
-        # CAMBIO: Se transformó el cuadro de verificación final para que sea una confirmación formal y limpia de los datos recolectados (Gemini)
+        # Verificación y Cierre: Presentación del balance final de datos para validación visual del administrador
         if whiptail \
-          --backtitle "Configuración Manual de la Interfaz de Red" \
-          --title "Revisión de Parámetros Fijos" --yes-button "Confirmar y Aplicar" --no-button "Modificar Datos" \
-          --yesno "¿Son correctos los datos de red que has configurado para el servidor?
-
-					• Dirección IPv4 (CIDR):  ${IPv4addr}
-					• Puerta de enlace:       ${IPv4gw}" "${r}" "${c}"; then
-          # Si las configuraciones son correctas, entonces necesitamos establecer la pivpnIP
-          echo "IPv4addr=${IPv4addr}" >> "${tempsetupVarsFile}"
-          echo "IPv4gw=${IPv4gw}" >> "${tempsetupVarsFile}"
-          # Una vez hecho esto, el bucle termina y continuamos
+          --backtitle "Configuración Manual de Red - PiVPN" \
+          --title "Revisión de Parámetros de Red Escritos" \
+          --yes-button "Confirmar y Aplicar" \
+          --no-button "Corregir Datos" \
+          --yesno "¿Confirmas que los siguientes datos estructurados son los correctos para inicializar el despliegue de interfaces?\n\n  • Dirección IPv4 fija (CIDR):  ${IPv4addr}\n  • Puerta de enlace local:     ${IPv4gw}" \
+          "${r}" "${c}"; then
+          
+          # Persistencia final tras validación completa del bloque interactivo
+          {
+            echo "IPv4addr=${IPv4addr}"
+            echo "IPv4gw=${IPv4gw}"
+          } >> "${tempsetupVarsFile}"
+          
+          echo "::: [ÉXITO] Parámetros manuales de red confirmados por el usuario y guardados con éxito."
           ipSettingsCorrect=true
         else
-          # Si las configuraciones son incorrectas, el bucle continúa
+          # El usuario detectó un error en la revisión; reiniciamos los flags para repetir las capturas
+          echo "::: [AVISO] El usuario rechazó el resumen de red. Reiniciando bucle de captura manual."
           ipSettingsCorrect=false
           IPv4AddrValid=false
           IPv4gwValid=false
         fi
-      done
-      # Fin de la declaración if para DHCP vs. estática
-    fi
-    # Fin de la declaración if para la Reserva DHCP
-  fi
+      done # Fin del bucle principal 'until ipSettingsCorrect'
+    fi # Fin de modificación manual vs parámetros DHCP heredados
+  fi # Fin de decisión Reserva DHCP vs Configuración local manual
 }
 
 setDHCPCD() {
