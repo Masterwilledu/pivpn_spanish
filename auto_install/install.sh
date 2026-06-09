@@ -500,13 +500,13 @@ askAboutExistingInstall() {
 
   # ÁMBITO SEGURO: Declaración local de etiquetas del menú con terminología técnica homologada
   local opt1a="Actualizar"
-  local opt1b="Actualizar scripts y componentes internos del ecosistema PiVPN"
+  local opt1b="Actualizar scripts y componentes internos de PiVPN"
 
   local opt2a="Reparar"
-  local opt2b="Corregir archivos corruptos preservando la configuración actual"
+  local opt2b="Corrige archivos corruptos manteniendo configuración"
 
   local opt3a="Reconfigurar"
-  local opt3b="Reinstalar desde cero o modificar el protocolo VPN operativo"
+  local opt3b="Reinstalar desde cero o modificar protocolo VPN"
 
   # INTERFAZ DE USUARIO: Menú adaptativo estructurado con información detallada del entorno detectado
 UpdateCmd="$(whiptail \
