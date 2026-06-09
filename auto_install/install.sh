@@ -495,33 +495,43 @@ checkExistingInstall() {
 }
 
 askAboutExistingInstall() {
-  # CAMBIO: Se han refinado las etiquetas y descripciones del menú para que reflejen con exactitud técnica la acción de cada opción, facilitando la toma de decisiones al usuario ()
-  opt1a="Actualizar"
-  opt1b="Actualiza los scripts y componentes internos de PiVPN"
+  # TRAZABILIDAD: Registro previo para monitorizar la apertura de componentes interactivos en primer plano
+  echo "::: [INFO] Iniciando cuadro de diálogo interactivo para resolver colisión de instalación..."
 
-  opt2a="Reparar"
-  opt2b="Corrige archivos corruptos manteniendo configuración"
+  # ÁMBITO SEGURO: Declaración local de etiquetas del menú con terminología técnica homologada
+  local opt1a="Actualizar"
+  local opt1b="Actualizar scripts y componentes internos del ecosistema PiVPN"
 
-  opt3a="Reconfigurar"
-  opt3b="Vuelve a instalar PiVPN desde cero o cambia de VPN"
+  local opt2a="Reparar"
+  local opt2b="Corregir archivos corruptos preservando la configuración actual"
 
-  # CAMBIO: Se mejoró el texto del menú de whiptail para darle un formato más limpio, profesional y añadir una advertencia clara sobre la reconfiguración ()
-  UpdateCmd="$(whiptail \
-    --title "¡Instalación Existente Detectada!" --ok-button "Seleccionar" --cancel-button "Cancelar" \
-    --menu "El asistente ha detectado que PiVPN ya se encuentra instalado en este sistema.
-${1}
+  local opt3a="Reconfigurar"
+  local opt3b="Reinstalar desde cero o modificar el protocolo VPN operativo"
 
-Por favor, selecciona la acción que deseas realizar:" "${r}" "${c}" 3 \
+  # INTERFAZ DE USUARIO: Menú adaptativo estructurado con información detallada del entorno detectado
+UpdateCmd="$(whiptail \
+    --backtitle "Asistente de Configuración PiVPN" \
+    --title "¡Instalación Existente Detectada!" \
+    --ok-button "Seleccionar" \
+    --cancel-button "Cancelar" \
+    --menu "El asistente ha detectado un entorno de PiVPN ya operativo en este sistema.
+
+Archivo de variables localizado:
+• ${1}
+
+Por favor, selecciona la acción que deseas realizar para continuar:" "${r}" "${c}" 3 \
     "${opt1a}" "${opt1b}" \
     "${opt2a}" "${opt2b}" \
     "${opt3a}" "${opt3b}" \
     3>&2 2>&1 1>&3)" \
     || {
-      err "::: Instalación cancelada por el usuario. Saliendo..."
+      echo ":::"
+      err "Instalación cancelada por el usuario en el menú de selección de entorno existente."
       exit 1
     }
 
-  echo "::: Opción ${UpdateCmd} seleccionada."
+  # TRAZABILIDAD: Confirmación del estado consolidado para guiar los bloques de enrutamiento subsiguientes
+  echo "::: [INFO] Acción seleccionada con éxito: '${UpdateCmd}'."
 }
 
 distroCheck() {
