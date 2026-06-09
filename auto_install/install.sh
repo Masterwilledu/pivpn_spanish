@@ -3384,14 +3384,14 @@ askClientDNS() {
       "${r:-22}" "${c:-80}" 8)
 
     local -a DNSChooseOptions=(
-      "Google" "Resolución global de alta velocidad (8.8.8.8)" ON
-      "CloudFlare" "Máxima privacidad y velocidad de respuesta (1.1.1.1)" OFF
-      "OpenDNS" "Filtros de protección web y estabilidad (208.67.222.222)" OFF
-      "Quad9" "Seguridad avanzada con bloqueo de malware integrado (9.9.9.9)" OFF
-      "AdGuard" "Bloqueo comercial de anuncios y rastreadores web nativo" OFF
-      "FamilyShield" "Filtro restrictivo diseñado para protección parental" OFF
-      "PiVPN-is-local-DNS" "Usar la IP de este servidor (Para AdGuard Home o Unbound propio)" OFF
-      "Personalizado" "Introducir manualmente direcciones IP DNS específicas" OFF
+      "Google" "Resolución global de alta velocidad" ON
+      "CloudFlare" "Máxima privacidad y velocidad" OFF
+      "OpenDNS" "Protección web y estabilidad" OFF
+      "Quad9" "Seguridad avanzada y antimalware" OFF
+      "AdGuard" "Bloqueo publicidad y rastreadores" OFF
+      "FamilyShield" "Filtro para protección parental" OFF
+      "PiVPN-is-local-DNS" "AdGuard, Pihole o Unbound propio)" OFF
+      "Personalizado" "Introducir manualmente DNS específicas" OFF
     )
 
     if DNSchoices="$("${DNSChoseCmd[@]}" "${DNSChooseOptions[@]}" 2>&1 > /dev/tty)"; then
