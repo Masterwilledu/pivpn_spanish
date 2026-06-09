@@ -1404,13 +1404,13 @@ staticIpNotSupported() {
     --backtitle "Asistente de Configuración de Red - PiVPN" \
     --title "Aviso Importante: Dirección IP Estática" \
     --ok-button "Entendido y Continuar" \
-    --msgbox "Este instalador automático solo gestiona la asignación de archivos de IP estática de forma local en sistemas basados en Raspberry Pi OS.
+    --msgbox "Este instalador automático solo gestiona la IP estática de forma local en sistemas basados en Raspberry Pi OS.
 
-Recomendaciones y buenas prácticas según tu entorno actual:
-• Servidores en la Nube (AWS, Oracle Cloud, Proxmox remotos): Tu proveedor asigna y mapea la IP interna mediante su propia infraestructura de red. No alteres la configuración local.
-• Servidores Locales (Ubuntu Server, Debian puro o Máquinas Virtuales): Te recomendamos encarecidamente fijar la IP de este equipo asignando una 'Reserva DHCP' vinculada a la MAC en la consola de tu router o gateway de red.
+Buenas prácticas recomendadas según tu entorno:
+• Servidores en la Nube (AWS, Oracle, Proxmox remotos): Tu proveedor asigna la IP interna mediante su propia infraestructura de red. No modifiques la configuración local.
+• Servidores Locales (Ubuntu Server, Debian o Máquinas Virtuales): Se recomienda fijar la IP configurando una 'Reserva DHCP' vinculada a la MAC en tu router o gateway.
 
-Si decides forzar una IP fija directamente en este sistema operativo más adelante, recuerda editar adecuadamente Netplan (/etc/netplan/) o el archivo clásico /etc/network/interfaces antes de pasar este servidor a producción." "${r}" "${c}"
+Si prefieres forzar una IP fija en este sistema operativo más adelante, recuerda editar Netplan (/etc/netplan/) o /etc/network/interfaces antes de pasar el servidor a producción." "${r}" "${c}"
 
   echo "::: [INFO] Confirmación de aviso de red registrada por el usuario."
 }
