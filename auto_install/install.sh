@@ -3484,8 +3484,11 @@ askClientDNS() {
   echo "::: [ÉXITO] Pila de resolución DNS de cliente consolidada y registrada correctamente."
 }
 
-# Llama a esta función para usar una expresión regular y verificar
-# si la entrada del usuario es un dominio personalizado válido
+# ==============================================================================
+#  VERIFICACIÓN FORMAL DE SINTAXIS DE DOMINIO MEDIANTE EXPRESIÓN REGULAR (PCRE)
+# ==============================================================================
+# Valida si la cadena de entrada cumple estrictamente con las especificaciones
+# del estándar RFC 1035 para nombres de dominio completos (FQDN).
 validDomain() {
   local domain="${1}"
   local perl_regexp='(?=^.{4,253}$)'
@@ -3494,188 +3497,230 @@ validDomain() {
   grep -qP "${perl_regexp}" <<< "${domain}"
 }
 
-# Este procedimiento permite al usuario especificar un
-# dominio de búsqueda personalizado si tiene uno.
+# ==============================================================================
+#         ASIGNACIÓN Y CONFIGURACIÓN DEL SUFIJO DE DOMINIO DE BÚSQUEDA
+# ==============================================================================
+# Permite al administrador inyectar un sufijo DNS personalizado (Search Domain)
+# para la resolución nativa de hosts sin necesidad de especificar el FQDN.
 askCustomDomain() {
+  local domain_correct="false"
+  local input_domain
+
+  echo "::: [INFO] Evaluando requerimientos para el dominio de búsqueda personalizado..."
+
+  # ------------------------------------------------------------------------------
+  # MODO 1: INSTALACIÓN DESATENDIDA
+  # ------------------------------------------------------------------------------
   if [[ "${runUnattended}" == 'true' ]]; then
     if [[ -n "${pivpnSEARCHDOMAIN}" ]]; then
       if validDomain "${pivpnSEARCHDOMAIN}"; then
-        echo "::: Usando dominio personalizado ${pivpnSEARCHDOMAIN}"
+        echo "::: [INFO] Validando dominio desatendido con éxito: ${pivpnSEARCHDOMAIN}"
       else
-        err "::: El dominio personalizado ${pivpnSEARCHDOMAIN} no es válido"
+        err "Error de validación: El dominio de búsqueda '${pivpnSEARCHDOMAIN}' inyectado no es válido."
         exit 1
       fi
     else
-      echo "::: Omitiendo dominio personalizado"
+      echo "::: [INFO] Omitiendo dominio de búsqueda personalizado por ausencia de parámetros."
     fi
 
-    echo "pivpnSEARCHDOMAIN=${pivpnSEARCHDOMAIN}" >> "${tempsetupVarsFile}"
-    return
-  fi
-
-  if [[ "${CUSTOMIZE}" -eq 0 ]]; then
+  # ------------------------------------------------------------------------------
+  # MODO 2: INSTALACIÓN INTERACTIVA (ASISTIDA POR PERFIL ÓPTIMO)
+  # ------------------------------------------------------------------------------
+  elif [[ "${CUSTOMIZE:-1}" -eq 0 ]]; then
+    # Si el usuario seleccionó la instalación rápida guiada y el motor es OpenVPN, se hereda vacío
     if [[ "${VPN}" == "openvpn" ]]; then
-      echo "pivpnSEARCHDOMAIN=${pivpnSEARCHDOMAIN}" >> "${tempsetupVarsFile}"
-      return
+      echo "::: [INFO] Aplicando perfil optimizado por defecto: Omitiendo dominio de búsqueda personalizado."
     fi
-  fi
 
-  DomainSettingsCorrect=false
+  # ------------------------------------------------------------------------------
+  # MODO 3: INSTALACIÓN INTERACTIVA (PERSONALIZACIÓN MANUAL)
+  # ------------------------------------------------------------------------------
+  else
+    if whiptail \
+      --backtitle "Asistente de Configuración - PiVPN" \
+      --title "Dominio de Búsqueda Personalizado" \
+      --yes-button "Sí, configurar" \
+      --no-button "Omitir" \
+      --defaultno \
+      --yesno "¿Deseas configurar un sufijo de dominio de búsqueda personalizado para tus clientes?\n\n• ¿Para qué sirve?: Permite resolver nombres de equipos locales de forma directa (por ejemplo, acceder a 'servidor' en lugar de 'servidor.midominio.com').\n\n[AVISO] Se recomienda omitir esta opción a menos que dispongas de una infraestructura de dominio local activa o lo requieras en un entorno corporativo." \
+      "${r:-18}" "${c:-78}"; then
+      
+      until [[ "${domain_correct}" == "true" ]]; do
+        if input_domain="$(whiptail \
+          --backtitle "Asistente de Configuración - PiVPN" \
+          --title "Configurar Dominio Personalizado" \
+          --ok-button "Continuar" \
+          --cancel-button "Cancelar" \
+          --inputbox "Introduce el sufijo de dominio personalizado que deseas asociar a la red VPN:\n\nEjemplo estándar: miempresa.local o mired.com" \
+          "${r:-14}" "${c:-76}" \
+          3>&1 1>&2 2>&3)"; then
 
-  if whiptail \
-    --backtitle "Configurador PiVPN" \
-    --title "Dominio de Búsqueda Personalizado" --yes-button "Sí, añadir" --no-button "Omitir" \
-    --defaultno \
-    --yesno "¿Deseas configurar un sufijo de dominio de búsqueda personalizado?
-
-[AVISO] Esta opción se recomienda solo para usuarios avanzados o entornos corporativos que dispongan de una infraestructura de dominio propia." "${r}" "${c}"; then
-    until [[ "${DomainSettingsCorrect}" == 'true' ]]; do
-      if pivpnSEARCHDOMAIN="$(whiptail \
-        --backtitle "Configurador PiVPN" \
-        --title "Dominio Personalizado" --ok-button "Continuar" --cancel-button "Cancelar" \
-        --inputbox "Introduce tu sufijo de dominio personalizado.
-
-Ejemplo: midominio.com" "${r}" "${c}" \
-        --title "Dominio Personalizado" \
-        3>&1 1>&2 2>&3)"; then
-        if validDomain "${pivpnSEARCHDOMAIN}"; then
-          if whiptail \
-            ---backtitle "Configurador PiVPN" \
-        --title "Confirmar Configuración" --yes-button "Confirmar" --no-button "Modificar" \
-        --yesno "¿Es correcto el dominio introducido?
-
-  • Dominio de búsqueda: ${pivpnSEARCHDOMAIN}" "${r}" "${c}"; then
-            DomainSettingsCorrect=true
+          if validDomain "${input_domain}"; then
+            # Diálogo interactivo de confirmación explícita
+            if whiptail \
+              --backtitle "Asistente de Configuración - PiVPN" \
+              --title "Confirmar Dominio" \
+              --yes-button "Sí, aplicar" \
+              --no-button "No, modificar" \
+              --yesno "¿Es correcta la nomenclatura del dominio introducido?\n\n• Dominio de búsqueda: ${input_domain}" \
+              "${r:-13}" "${c:-72}"; then
+              
+              pivpnSEARCHDOMAIN="${input_domain}"
+              domain_correct="true"
+              echo "::: [INFO] Dominio de búsqueda confirmado por el usuario: ${pivpnSEARCHDOMAIN}"
+            fi
           else
-            # Si las configuraciones son incorrectas, el bucle continúa
-            DomainSettingsCorrect=false
+            # Alerta visual ante sintaxis de dominio inválida según regex
+            whiptail \
+              --backtitle "Asistente de Configuración - PiVPN" \
+              --title "Error: Estructura de Dominio Inválida" \
+              --ok-button "Corregir sintaxis" \
+              --msgbox "El texto introducido no cumple con las especificaciones del estándar RFC de nomenclatura de dominios.\n\nTexto procesado:\n  • Dominio: ${input_domain:-(Cadena vacía)}\n\nPor favor, verifica que no contenga caracteres especiales prohibidos ni espacios." \
+              "${r:-15}" "${c:-72}"
           fi
         else
-          whiptail \
-            --backtitle "Configurador PiVPN" \
-            --title "Error: Dominio Inválido" --ok-button "Reintentar" \
-            --msgbox "El dominio introducido no tiene un formato válido. \
-Por favor, comprueba la sintaxis e inténtalo de nuevo.
-
-Texto detectado:
-  • Dominio: ${pivpnSEARCHDOMAIN:-(Vacío)}" "${r}" "${c}"
-          DomainSettingsCorrect=false
+          echo "::: [AVISO] Cancelación detectada en la entrada del dominio. Abortando instalación..." >&2
+          exit 1
         fi
-      else
-        err "::: Cancelación seleccionada. Saliendo..."
-        exit 1
-      fi
-    done
+      done
+    else
+      echo "::: [INFO] El usuario ha optado por omitir el sufijo de búsqueda personalizado."
+      pivpnSEARCHDOMAIN=""
+    fi
   fi
 
-  echo "pivpnSEARCHDOMAIN=${pivpnSEARCHDOMAIN}" >> "${tempsetupVarsFile}"
+  # ------------------------------------------------------------------------------
+  # PERSISTENCIA TRANSACCIONAL DE CONFIGURACIÓN
+  # ------------------------------------------------------------------------------
+  if ! echo "pivpnSEARCHDOMAIN=${pivpnSEARCHDOMAIN}" >> "${tempsetupVarsFile}"; then
+    err "Fallo crítico de E/S: No se pudo escribir la directiva del dominio en '${tempsetupVarsFile}'."
+    exit 1
+  fi
+
+  if [[ -n "${pivpnSEARCHDOMAIN}" ]]; then
+    echo "::: [ÉXITO] Sufijo de búsqueda consolidado correctamente: ${pivpnSEARCHDOMAIN}"
+  else
+    echo "::: [ÉXITO] Finalizada la sección de dominio de búsqueda (Sin asignación)."
+  fi
 }
 
 askPublicIPOrDNS() {
-  # 1. Obtención optimizada de la IP pública con Timeouts
-  if ! IPv4pub="$(dig +short +time=3 +tries=1 myip.opendns.com @208.67.222.222 2>/dev/null)" \
-    || ! validIP "${IPv4pub}"; then
-    err "dig falló o devolvió una IP inválida. Probando con curl..."
+  # ==============================================================================
+  #       SELECCIÓN DEL MÉTODO DE CONEXIÓN EXTERNA (IP PÚBLICA / DNS)
+  # ==============================================================================
+  # Determina el punto de acceso perimetral que usarán los clientes para negociar
+  # el túnel VPN. Permite el uso directo de la IP WAN o de un FQDN/DDNS.
 
-    if ! IPv4pub="$(curl -sSf --connect-timeout 4 https://checkip.amazonaws.com 2>/dev/null)" \
-      || ! validIP "${IPv4pub}"; then
-      err "No se pudo determinar tu IP pública. Verifica tu conexión a Internet o DNS."
+  local IPv4pub=""
+  local dns_correct="false"
+  local input_meth input_dns
+
+  echo "::: [INFO] Detectando la dirección IP pública actual del servidor..."
+
+  # 1. Obtención optimizada de la IP pública con mecanismos de contingencia (Failover)
+  if ! IPv4pub="$(dig +short +time=3 +tries=1 myip.opendns.com @208.67.222.222 2>/dev/null)" || ! validIP "${IPv4pub}"; then
+    echo "::: [AVISO] La resolución DNS mediante 'dig' falló o devolvió una IP no válida. Probando vía HTTPS..."
+    
+    if ! IPv4pub="$(curl -sSf --connect-timeout 4 https://checkip.amazonaws.com 2>/dev/null)" || ! validIP "${IPv4pub}"; then
+      err "Error de conectividad: No se pudo determinar la dirección IP pública WAN del host. Verifica la conexión a Internet o los servidores DNS locales."
       exit 1
     fi
   fi
 
-  # 2. Modo de instalación desatendida (Unattended)
+  echo "::: [INFO] Dirección IP pública WAN detectada correctamente: ${IPv4pub}"
+
+  # ------------------------------------------------------------------------------
+  # MODO 1: INSTALACIÓN DESATENDIDA
+  # ------------------------------------------------------------------------------
   if [[ "${runUnattended}" == 'true' ]]; then
     if [[ -z "${pivpnHOST}" ]]; then
-      echo "::: No se especificó HOST, usando IP pública detectada: ${IPv4pub}"
+      echo "::: [AVISO] No se especificó la variable HOST. Auto-asignando IP WAN detectada: ${IPv4pub}"
       pivpnHOST="${IPv4pub}"
     else
       if validIP "${pivpnHOST}"; then
-        echo "::: Usando IP pública configurada: ${pivpnHOST}"
+        echo "::: [INFO] Parámetro desatendido validado con éxito (Estructura IP): ${pivpnHOST}"
       elif validDomain "${pivpnHOST}"; then
-        echo "::: Usando nombre de dominio configurado: ${pivpnHOST}"
+        echo "::: [INFO] Parámetro desatendido validado con éxito (Estructura FQDN): ${pivpnHOST}"
       else
-        err "::: '${pivpnHOST}' no es una IP o nombre de dominio válido."
+        err "Error de validación: El valor HOST '${pivpnHOST}' del archivo de configuración no es una IP ni un FQDN válido."
         exit 1
       fi
     fi
 
-    echo "pivpnHOST=${pivpnHOST}" >> "${tempsetupVarsFile}"
-    return
-  fi
+  # ------------------------------------------------------------------------------
+  # MODO 2: INSTALACIÓN INTERACTIVA (ASISTIDA POR PLAN DE ACCESO)
+  # ------------------------------------------------------------------------------
+  else
+    if input_meth="$(whiptail \
+      --backtitle "Asistente de Configuración - PiVPN" \
+      --title "Punto de Acceso Externo" \
+      --ok-button "Seleccionar" \
+      --cancel-button "Cancelar" \
+      --radiolist "Selecciona el método de direccionamiento que usarán tus perfiles de cliente para conectarse al servidor VPN desde el exterior:\n\n(Usa las flechas para moverte y la barra espaciadora para marcar tu opción)" \
+      "${r:-16}" "${c:-78}" 2 \
+      "${IPv4pub}" "Usar la dirección IP pública actual (Recomendado si es estática/fija)" ON \
+      "DNS_Entry" "Usar un nombre de dominio completo o servicio DDNS (No-IP, DuckDNS, etc.)" OFF \
+      3>&1 1>&2 2>&3)"; then
 
-  # 3. Modo Interactivo (Inicialización explícita de variables)
-  local publicDNSCorrect=false
-  local publicDNSValid=false
-
-  if METH="$(whiptail \
-    --backtitle "Configurador PiVPN" \
-    --title "Método de Conexión" --ok-button "Seleccionar" --cancel-button "Salir" \
-    --radiolist "¿Qué método usarán los clientes para conectarse a tu servidor VPN? \
-(Usa la barra espaciadora para marcar tu opción)." "${r}" "${c}" 2 \
-    "${IPv4pub}" "Usar esta dirección IP pública detectada" "ON" \
-    "DNS Entry" "Usar un nombre de dominio (DDNS / DNS público)" "OFF" \
-    3>&1 1>&2 2>&3)"; then
-
-    if [[ "${METH}" == "${IPv4pub}" ]]; then
-      pivpnHOST="${IPv4pub}"
-    else
-      # Bucle principal de validación del dominio personalizado
-      until [[ "${publicDNSCorrect}" == 'true' ]]; do
-        # Reinicio explícito del estado del bucle interno para evitar saltos lógicos
-        publicDNSValid=false
-        
-        until [[ "${publicDNSValid}" == 'true' ]]; do
-          if PUBLICDNS="$(whiptail \
-            --backtitle "Configurador PiVPN" \
-            --title "Configuración de Dominio" --ok-button "Continuar" --cancel-button "Cancelar" \
-            --inputbox "Introduce el nombre de dominio público o DDNS para este servidor.
-
-Ejemplo: midominio.com" "${r}" "${c}" \
+      if [[ "${input_meth}" == "${IPv4pub}" ]]; then
+        pivpnHOST="${IPv4pub}"
+        echo "::: [INFO] El usuario ha optado por usar el direccionamiento IP WAN directo: ${pivpnHOST}"
+      else
+        # Bucle optimizado de validación y confirmación de dominio lineal
+        until [[ "${dns_correct}" == "true" ]]; do
+          if input_dns="$(whiptail \
+            --backtitle "Asistente de Configuración - PiVPN" \
+            --title "Configuración de Dominio / DDNS" \
+            --ok-button "Continuar" \
+            --cancel-button "Cancelar" \
+            --inputbox "Introduce el nombre de dominio público o la dirección de tu servicio DNS dinámico (DDNS) que apunta a tu red residencial o corporativa.\n\nEjemplo: miservidor.duckdns.org o vpn.miempresa.com" \
+            "${r:-15}" "${c:-76}" "" \
             3>&1 1>&2 2>&3)"; then
             
-            if validDomain "${PUBLICDNS}"; then
-              publicDNSValid=true
-              pivpnHOST="${PUBLICDNS}"
+            if validDomain "${input_dns}"; then
+              # Diálogo de confirmación final dentro del mismo paso lógico
+              if whiptail \
+                --backtitle "Asistente de Configuración - PiVPN" \
+                --title "Confirmar Nombre DNS" \
+                --yes-button "Sí, es correcto" \
+                --no-button "No, modificar" \
+                --yesno "¿Deseas consolidar este nombre de dominio en los perfiles de conexión?\n\n• DNS / DDNS Público: ${input_dns}\n\nNota: Asegúrate de que el dominio apunte correctamente a tu IP pública WAN antes de conectar los clientes." \
+                "${r:-15}" "${c:-74}"; then
+                
+                pivpnHOST="${input_dns}"
+                dns_correct="true"
+                echo "::: [INFO] Nombre de dominio confirmado por el usuario: ${pivpnHOST}"
+              fi
             else
+              # Alerta visual ante sintaxis errónea
               whiptail \
-                --backtitle "Configurador PiVPN" \
-                --title "Error: Dominio Inválido" --ok-button "Reintentar" \
-                --msgbox "El nombre DNS introducido no tiene un formato válido. \
-Por favor, comprueba la sintaxis e inténtalo de nuevo.
-
-Texto detectado:
-  • Nombre DNS: ${PUBLICDNS:-(Vacío)}" "${r}" "${c}"
-              publicDNSValid=false
+                --backtitle "Asistente de Configuración - PiVPN" \
+                --title "Error: Sintaxis DNS Inválida" \
+                --ok-button "Corregir entrada" \
+                --msgbox "El texto introducido no cumple con el formato estándar de un nombre de dominio (FQDN).\n\nTexto detectado:\n  • Entrada: ${input_dns:-(Cadena vacía)}\n\nPor favor, verifica que no contenga esquemas (como http://), barras ni espacios." \
+                "${r:-15}" "${c:-72}"
             fi
           else
-            err "::: Cancelación seleccionada por el usuario. Saliendo..."
+            echo "::: [AVISO] Cancelación detectada en la entrada de dominio. Abortando instalación..." >&2
             exit 1
           fi
         done
-
-        # Pantalla de confirmación final
-        if whiptail \
-          --backtitle "Configurador PiVPN" \
-          --title "Confirmar Nombre DNS" --yes-button "Confirmar" --no-button "Modificar" \
-          --yesno "¿Es correcto el dominio para tus clientes?
-
-  • DNS Público: ${PUBLICDNS}" "${r}" "${c}"; then
-          publicDNSCorrect=true
-        else
-          publicDNSCorrect=false
-          # Al poner esto en false, obligamos a que el bucle 'until' interno vuelva a ejecutarse
-          publicDNSValid=false 
-        fi
-      done
+      fi
+    else
+      echo "::: [AVISO] Cancelación detectada en el menú del método de conexión. Abortando..." >&2
+      exit 1
     fi
-  else
-    err "::: Cancelación seleccionada por el usuario. Saliendo..."
+  fi
+
+  # ------------------------------------------------------------------------------
+  # PERSISTENCIA TRANSACCIONAL DE CONFIGURACIÓN
+  # ------------------------------------------------------------------------------
+  if ! echo "pivpnHOST=${pivpnHOST}" >> "${tempsetupVarsFile}"; then
+    err "Fallo crítico de E/S: No se pudo escribir la directiva del HOST en '${tempsetupVarsFile}'."
     exit 1
   fi
 
-  # Guardar la variable final en el archivo de configuración
-  echo "pivpnHOST=${pivpnHOST}" >> "${tempsetupVarsFile}"
+  echo "::: [ÉXITO] Parámetro de acceso externo consolidado correctamente: ${pivpnHOST}"
 }
 
 askEncryption() {
