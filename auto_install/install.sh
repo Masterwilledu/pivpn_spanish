@@ -4263,117 +4263,194 @@ confOpenVPN() {
 }
 
 confOVPN() {
-  ${SUDO} install -m 644 \
-    "${pivpnFilesDir}/files/etc/openvpn/easy-rsa/pki/Default.txt" \
-    /etc/openvpn/easy-rsa/pki/Default.txt
+  # TRAZABILIDAD: Registro de inicio de la configuración de OpenVPN
+  echo "::: [INFO] Iniciando la configuración de la plantilla base para clientes OpenVPN..."
 
-  ${SUDO} sed -i \
-    "s/IPv4pub/${pivpnHOST}/" \
-    /etc/openvpn/easy-rsa/pki/Default.txt
+  local src_template="${pivpnFilesDir}/files/etc/openvpn/easy-rsa/pki/Default.txt"
+  local dest_template="/etc/openvpn/easy-rsa/pki/Default.txt"
 
-  # si modificaron el puerto, poner el valor en Default.txt para que lo usen los clientes
+  # VALIDACIÓN: Verificar la existencia del archivo de plantilla de origen
+  if [[ ! -f "${src_template}" ]]; then
+    err "Archivo de origen de la plantilla no encontrado en: '${src_template}'"
+    exit 1
+  fi
+
+  # ESTRUCTURA: Garantizar la presencia del árbol de directorios de destino en el sistema
+  if ! ${SUDO} mkdir -p "/etc/openvpn/easy-rsa/pki"; then
+    err "No se pudo crear el directorio de destino requerido para la infraestructura PKI."
+    exit 1
+  fi
+
+  # DESPLIEGUE: Instalar el archivo de configuración base con permisos restrictivos estándar
+  if ! ${SUDO} install -m 644 "${src_template}" "${dest_template}"; then
+    err "Fallo crítico al desplegar la plantilla base en '${dest_template}'."
+    exit 1
+  fi
+
+  # CONFIGURACIÓN: Inyección dinámica del host o IP de conexión WAN (usando delimitador alternativo seguro)
+  echo "::: [INFO] Asignando dirección IP pública o nombre de host ('${pivpnHOST}') en la plantilla..."
+  if ! ${SUDO} sed -i "s|IPv4pub|${pivpnHOST}|" "${dest_template}"; then
+    err "Fallo al configurar el Host de acceso WAN en la plantilla del cliente."
+    exit 1
+  fi
+
+  # CONFIGURACIÓN: Adaptación del puerto de red si difiere del estándar oficial (1194)
   if [[ "${pivpnPORT}" -ne 1194 ]]; then
-    ${SUDO} sed -i \
-      "s/1194/${pivpnPORT}/g" \
-      /etc/openvpn/easy-rsa/pki/Default.txt
-  fi
-
-  # si modificaron el protocolo, poner el valor en Default.txt para que lo usen los clientes
-  if [[ "${pivpnPROTO}" != "udp" ]]; then
-    ${SUDO} sed -i \
-      "s/proto udp/proto tcp/g" \
-      /etc/openvpn/easy-rsa/pki/Default.txt
-  fi
-
-  # verificar el nombre del servidor para fortalecer la seguridad
-  ${SUDO} sed -i \
-    "s/SRVRNAME/${SERVER_NAME}/" \
-    /etc/openvpn/easy-rsa/pki/Default.txt
-
-  if [[ "${pivpnTLSPROT}" == "tls-crypt-v2" ]]; then
-    # Si habilitaron 2.5, eliminar las opciones de key-direction ya que no son necesarias
-    ${SUDO} sed -i \
-      "/key-direction 1/d" \
-      /etc/openvpn/easy-rsa/pki/Default.txt
-  fi
-}
-
-confWireGuard() {
-  # El tipo de trabajo de recarga aún no está disponible en wireguard-tools incluido con
-  # Ubuntu 20.04
-  if [[ "${PLAT}" == 'Alpine' ]]; then
-    echo '::: Añadiendo unidad wg-quick'
-    ${SUDO} install -m 0755 \
-      "${pivpnFilesDir}/files/etc/init.d/wg-quick" \
-      /etc/init.d/wg-quick
-  else
-    if ! grep -q 'ExecReload' /lib/systemd/system/wg-quick@.service; then
-      local wireguard_service_path
-      wireguard_service_path="${pivpnFilesDir}/files/etc/systemd/system"
-      wireguard_service_path="${wireguard_service_path}/wg-quick@.service.d"
-      wireguard_service_path="${wireguard_service_path}/override.conf"
-      echo "::: Añadiendo tipo de trabajo de recarga adicional para la unidad wg-quick"
-      ${SUDO} install -Dm 644 \
-        "${wireguard_service_path}" \
-        /etc/systemd/system/wg-quick@.service.d/override.conf
-      ${SUDO} systemctl daemon-reload
+    echo "::: [INFO] Puerto personalizado detectado. Reasignando de 1194 al puerto: ${pivpnPORT}"
+    if ! ${SUDO} sed -i "s|1194|${pivpnPORT}|g" "${dest_template}"; then
+      err "Fallo al aplicar el puerto personalizado en la plantilla del cliente."
+      exit 1
     fi
   fi
 
+  # CONFIGURACIÓN: Reasignación del protocolo de transporte si se seleccionó TCP sobre UDP
+  if [[ "${pivpnPROTO}" != "udp" ]]; then
+    echo "::: [INFO] Protocolo alternativo detectado. Cambiando transporte por defecto a: ${pivpnPROTO}"
+    if ! ${SUDO} sed -i "s|proto udp|proto tcp|g" "${dest_template}"; then
+      err "Fallo al aplicar el protocolo de transporte TCP en la plantilla del cliente."
+      exit 1
+    fi
+  fi
+
+  # SEGURIDAD: Fortalecer la integridad del túnel verificando el identificador único del servidor (Server Name)
+  echo "::: [INFO] Configurando el identificador seguro de la instancia del servidor ('${SERVER_NAME}')..."
+  if ! ${SUDO} sed -i "s|SRVRNAME|${SERVER_NAME}|" "${dest_template}"; then
+    err "Fallo al inyectar la firma identificadora del servidor en la plantilla."
+    exit 1
+  fi
+
+  # COMPATIBILIDAD: Depuración de directivas heredadas según el nivel de cifrado de control TLS elegido
+  if [[ "${pivpnTLSPROT}" == "tls-crypt-v2" ]]; then
+    echo "::: [INFO] Protocolo tls-crypt-v2 activo. Removiendo directivas de dirección de clave redundantes..."
+    if ! ${SUDO} sed -i "/key-direction 1/d" "${dest_template}"; then
+      err "Fallo al realizar el saneamiento de directivas TLSv2 en la plantilla."
+      exit 1
+    fi
+  fi
+
+  echo "::: [ÉXITO] Plantilla de configuración base de OpenVPN consolidada correctamente."
+}
+
+confWireGuard() {
+  # TRAZABILIDAD: Registro inicial del proceso de aprovisionamiento de WireGuard
+  echo "::: [INFO] Iniciando el despliegue y aprovisionamiento del núcleo del motor WireGuard..."
+
+  # COMPATIBILIDAD: Adaptación e instalación de scripts de servicio según la distribución destino
+  if [[ "${PLAT}" == 'Alpine' ]]; then
+    echo '::: [INFO] Arquitectura Alpine Linux identificada. Desplegando unidad de inicio OpenRC wg-quick...'
+    if ! ${SUDO} install -m 0755 "${pivpnFilesDir}/files/etc/init.d/wg-quick" /etc/init.d/wg-quick; then
+      err "No se pudo instalar el script de servicio wg-quick para el sistema de inicio de Alpine."
+      exit 1
+    fi
+  else
+    # Soporte de recargas en caliente para sistemas systemd antiguos (ej. Ubuntu 20.04 sin ExecReload nativo)
+    if ! grep -q 'ExecReload' /lib/systemd/system/wg-quick@.service 2>/dev/null; then
+      local wireguard_service_path
+      wireguard_service_path="${pivpnFilesDir}/files/etc/systemd/system/wg-quick@.service.d/override.conf"
+      
+      echo "::: [INFO] Adaptando la unidad de systemd wg-quick con directivas ExecReload adicionales..."
+      if ! ${SUDO} install -Dm 644 "${wireguard_service_path}" /etc/systemd/system/wg-quick@.service.d/override.conf; then
+        err "No se pudo inyectar el archivo de anulación de configuración para systemd."
+        exit 1
+      fi
+      
+      if ! ${SUDO} systemctl daemon-reload; then
+        err "Fallo crítico al actualizar la caché de unidades del gestor systemctl."
+        exit 1
+      fi
+    fi
+  fi
+
+  # RESPALDO: Inspección defensiva de configuraciones previas para evitar pérdidas de perfiles históricos
   if [[ -d /etc/wireguard ]]; then
-    if [[ -n "$(${SUDO} ls -A /etc/wireguard)" ]]; then
-      # Hacer copia de seguridad de la carpeta wireguard
-      WIREGUARD_BACKUP="wireguard_$(date +%Y-%m-%d-%H%M%S).tar.gz"
-      echo "::: Generando respaldo de la configuración anterior en /etc/${WIREGUARD_BACKUP}..."
+    # OPTIMIZACIÓN: Comprobación rápida y limpia de contenidos evitando bifurcaciones pesadas en consola
+    if [[ -n "$(${SUDO} find /etc/wireguard -mindepth 1 -print -quit 2>/dev/null)" ]]; then
+      local WIREGUARD_BACKUP="wireguard_$(date +%Y-%m-%d-%H%M%S).tar.gz"
+      echo "::: [AVISO] Se detectaron archivos existentes. Generando respaldo de seguridad en /etc/${WIREGUARD_BACKUP}..."
+      
+      local CURRENT_UMASK
       CURRENT_UMASK="$(umask)"
       umask 0077
-      ${SUDO} tar -czf "/etc/${WIREGUARD_BACKUP}" /etc/wireguard &> /dev/null
+      if ${SUDO} tar -czf "/etc/${WIREGUARD_BACKUP}" /etc/wireguard &> /dev/null; then
+        ${SUDO} chmod 600 "/etc/${WIREGUARD_BACKUP}"
+        echo "::: [INFO] Copia de respaldo comprimida y asegurada correctamente bajo privilegios de root."
+      else
+        echo "::: [ADVERTENCIA] No se pudo consolidar la compresión del directorio histórico de WireGuard."
+      fi
       umask "${CURRENT_UMASK}"
     fi
 
     if [[ -f /etc/wireguard/wg0.conf ]]; then
-      ${SUDO} rm /etc/wireguard/wg0.conf
+      echo "::: [INFO] Removiendo archivo de interfaz principal wg0.conf heredado..."
+      ${SUDO} rm -f /etc/wireguard/wg0.conf
     fi
   else
-    # Si se compiló desde el código fuente, la carpeta wireguard no se crea
-    ${SUDO} mkdir /etc/wireguard
+    echo "::: [INFO] Creando el directorio base /etc/wireguard en el sistema anfitrión..."
+    if ! ${SUDO} mkdir -p /etc/wireguard; then
+      err "Incapacidad de E/S al inicializar el directorio maestro '/etc/wireguard'."
+      exit 1
+    fi
   fi
 
-  # Asegurar que solo root pueda entrar a la carpeta wireguard
-  ${SUDO} chown root:root /etc/wireguard
-  ${SUDO} chmod 700 /etc/wireguard
+  # SEGURIDAD: Restricción estricta de acceso al directorio maestro únicamente al usuario administrador (root)
+  if ! ${SUDO} chown root:root /etc/wireguard || ! ${SUDO} chmod 700 /etc/wireguard; then
+    err "No se pudieron establecer las políticas de permisos restrictivos de privacidad en /etc/wireguard."
+    exit 1
+  fi
 
+  # INTERFAZ DE USUARIO: Flujo de comunicación visual interactivo o reporte CLI desatendido
   if [[ "${runUnattended}" == 'true' ]]; then
-    echo "::: Se generarán ahora las claves del servidor."
+    echo "::: [INFO] Modo desatendido activo. Procediendo a calcular el par de claves simétricas del servidor..."
   else
     whiptail \
-      --title "Información del Servidor" --ok-button "Aceptar" \
-      --msgbox "Se generarán ahora las claves del servidor." \
+      --backtitle "Asistente de Instalación PiVPN" \
+      --title "Generación de Llaves Criptográficas" \
+      --ok-button "Continuar" \
+      --msgbox "El asistente procederá en este momento a calcular y generar de forma segura las claves de cifrado asimétrico del servidor WireGuard." \
       "${r}" \
       "${c}"
   fi
 
-  # Eliminar las carpetas de configuraciones y claves para hacer espacio para un nuevo servidor al
-  # usar 'Reparar' o 'Reconfigurar' sobre una instalación existente
+  # SANEAMIENTO: Limpieza integral de subdirectorios para dar espacio a un nuevo despliegue limpio
+  echo "::: [INFO] Saneando directorios internos e índices de clientes..."
   ${SUDO} rm -rf /etc/wireguard/configs
   ${SUDO} rm -rf /etc/wireguard/keys
 
-  ${SUDO} mkdir -p /etc/wireguard/configs
-  ${SUDO} touch /etc/wireguard/configs/clients.txt
-  ${SUDO} mkdir -p /etc/wireguard/keys
+  if ! ${SUDO} mkdir -p /etc/wireguard/configs /etc/wireguard/keys; then
+    err "Fallo crítico de E/S al estructurar los subdirectorios internos de claves y perfiles."
+    exit 1
+  fi
 
-  # Generar clave privada y derivar la clave pública de ella
-  wg genkey \
-    | ${SUDO} tee /etc/wireguard/keys/server_priv &> /dev/null
-  ${SUDO} cat /etc/wireguard/keys/server_priv \
-    | wg pubkey \
-    | ${SUDO} tee /etc/wireguard/keys/server_pub &> /dev/null
+  if ! ${SUDO} touch /etc/wireguard/configs/clients.txt; then
+    err "Fallo al inicializar el índice plano de registro de clientes 'clients.txt'."
+    exit 1
+  fi
 
-  echo "::: Se han generado las claves del servidor."
+  # CRIPTOGRAFÍA: Generación del par de claves del servidor mediante sus utilidades binarias directas
+  echo "::: [INFO] Generando clave privada del servidor y derivando su correspondiente clave pública..."
+  if ! (wg genkey | ${SUDO} tee /etc/wireguard/keys/server_priv &> /dev/null); then
+    err "Fallo crítico de seguridad al procesar la generación de la clave privada ('wg genkey')."
+    exit 1
+  fi
 
-  {
+  if ! (${SUDO} cat /etc/wireguard/keys/server_priv | wg pubkey | ${SUDO} tee /etc/wireguard/keys/server_pub &> /dev/null); then
+    err "Fallo crítico de seguridad al procesar la derivación de la clave pública ('wg pubkey')."
+    exit 1
+  fi
+
+  # OPTIMIZACIÓN: Almacenar la clave en una variable local para evitar subprocesos 'cat' dentro del bloque de texto
+  local server_priv_key
+  server_priv_key="$(${SUDO} cat /etc/wireguard/keys/server_priv 2>/dev/null)"
+  if [[ -z "${server_priv_key}" ]]; then
+    err "Error de lectura: La clave privada generada no se pudo extraer o se encuentra vacía."
+    exit 1
+  fi
+
+  # CONSTRUCCIÓN: Escritura transaccional protegida de la interfaz de red primaria de WireGuard
+  echo "::: [INFO] Escribiendo directivas de red y parámetros de rendimiento en '/etc/wireguard/wg0.conf'..."
+  if ! {
     echo '[Interface]'
-    echo "PrivateKey = $(${SUDO} cat /etc/wireguard/keys/server_priv)"
+    echo "PrivateKey = ${server_priv_key}"
     echo -n "Address = ${vpnGw}/${subnetClass}"
 
     if [[ "${pivpnenableipv6}" -eq 1 ]]; then
@@ -4384,57 +4461,83 @@ confWireGuard() {
 
     echo "MTU = ${pivpnMTU}"
     echo "ListenPort = ${pivpnPORT}"
-  } | ${SUDO} tee /etc/wireguard/wg0.conf &> /dev/null
+  } | ${SUDO} tee /etc/wireguard/wg0.conf &> /dev/null; then
+    err "Fallo crítico al guardar los parámetros de red de la interfaz principal en el archivo wg0.conf."
+    exit 1
+  fi
 
-  echo "::: Configuración del servidor generada."
+  echo "::: [ÉXITO] Configuración e interfaz del servidor WireGuard creadas con éxito."
 }
 
 confNetwork() {
-  # Habilitar el reenvío de tráfico de internet
-  echo 'net.ipv4.ip_forward=1' \
-    | ${SUDO} tee /etc/sysctl.d/99-pivpn.conf > /dev/null
+  # TRAZABILIDAD: Registro de inicio de la optimización y enrutamiento de red
+  echo "::: [INFO] Configurando el subsistema de red y políticas de enrutamiento..."
 
+  # PARÁMETROS DEL NÚCLEO: Habilitar el reenvío de tráfico (Forwarding) IPv4 de forma persistente
+  echo "::: [INFO] Habilitando el reenvío de paquetes de red IPv4 (IP Forwarding)..."
+  if ! echo 'net.ipv4.ip_forward=1' | ${SUDO} tee /etc/sysctl.d/99-pivpn.conf > /dev/null; then
+    err "Fallo crítico de E/S: No se pudo escribir la directiva de reenvío IPv4 en sysctl."
+    exit 1
+  fi
+
+  # PARÁMETROS DEL NÚCLEO: Configuración condicional para pilas IPv6
   if [[ "${pivpnenableipv6}" -eq 1 ]]; then
-    {
+    echo "::: [INFO] Configuración IPv6 activa. Habilitando forwarding e instrumentación RA para la interfaz '${IPv6dev}'..."
+    if ! {
       echo "net.ipv6.conf.all.forwarding=1"
       echo "net.ipv6.conf.${IPv6dev}.accept_ra=2"
-    } | ${SUDO} tee -a /etc/sysctl.d/99-pivpn.conf > /dev/null
+    } | ${SUDO} tee -a /etc/sysctl.d/99-pivpn.conf > /dev/null; then
+      err "Fallo crítico de E/S: No se pudieron consolidar las directivas de reenvío IPv6."
+      exit 1
+    fi
   fi
 
-  ${SUDO} sysctl -p /etc/sysctl.d/99-pivpn.conf > /dev/null
+  # APLICACIÓN: Forzar la carga inmediata de los parámetros del cortafuegos del núcleo sin reiniciar
+  echo "::: [INFO] Aplicando modificaciones dinámicas de sysctl al kernel..."
+  ${SUDO} sysctl -p /etc/sysctl.d/99-pivpn.conf > /dev/null 2>&1
 
+  # COMPATIBILIDAD: Persistencia del gestor de red en distribuciones basadas en Alpine Linux
   if [[ "${PLAT}" == 'Alpine' ]]; then
-	${SUDO} rc-update add sysctl
+    echo "::: [INFO] Arquitectura Alpine Linux detectada. Asegurando persistencia del servicio sysctl..."
+    ${SUDO} rc-update add sysctl > /dev/null 2>&1
   fi
 
+  # ==========================================================================
+  # INTEGRACIÓN CON UNCOMPLICATED FIREWALL (UFW)
+  # ==========================================================================
   if [[ "${USING_UFW}" -eq 1 ]]; then
-    echo "::: Se detectó que UFW está habilitado."
-    echo "::: Añadiendo reglas de UFW..."
+    echo "::: [INFO] Cortafuegos UFW (Uncomplicated Firewall) activo detectado en el sistema anfitrión."
+    echo "::: [INFO] Preparando e inyectando directivas de enmascaramiento de red..."
 
-    ### Salvaguarda básica: si el archivo está vacío, algo raro ha estado
-    ### pasando.
-    ### Nota: no hay salvaguarda contra contenido incompleto como resultado de fallos
-    ### previos.
+    # VALIDACIÓN DEFENSIVA: Verificar la integridad del archivo de reglas IPv4 antes de operar
     if [[ -s /etc/ufw/before.rules ]]; then
-      ${SUDO} cp -f /etc/ufw/before.rules /etc/ufw/before.rules.pre-pivpn
+      if ! ${SUDO} cp -f /etc/ufw/before.rules /etc/ufw/before.rules.pre-pivpn; then
+        err "No se pudo generar la copia de seguridad de las reglas originales de UFW (/etc/ufw/before.rules)."
+        exit 1
+      fi
     else
-      err "${0}: ERR: Lo siento, no tocaré el archivo vacío \"/etc/ufw/before.rules\"."
+      err "Fallo de validación: El archivo crítico de configuración '/etc/ufw/before.rules' está vacío o corrupto."
       exit 1
     fi
 
+    # VALIDACIÓN DEFENSIVA: Verificar la integridad del archivo de reglas IPv6 si aplica
     if [[ -s /etc/ufw/before6.rules ]]; then
-      ${SUDO} cp -f /etc/ufw/before6.rules /etc/ufw/before6.rules.pre-pivpn
+      if ! ${SUDO} cp -f /etc/ufw/before6.rules /etc/ufw/before6.rules.pre-pivpn; then
+        err "No se pudo generar la copia de seguridad de las reglas IPv6 originales de UFW (/etc/ufw/before6.rules)."
+        exit 1
+      fi
     else
-      err "${0}: ERR: Lo siento, no tocaré el archivo vacío \"/etc/ufw/before6.rules\"."
+      err "Fallo de validación: El archivo crítico de configuración IPv6 '/etc/ufw/before6.rules' está vacío o corrupto."
       exit 1
     fi
 
-    ### Si ya hay una sección "*nat", solo añadimos nuestro POSTROUTING MASQUERADE
-    if ${SUDO} grep -q "*nat" /etc/ufw/before.rules; then
-      local sed_pattern
+    local sed_pattern
 
-      ### Solo añadir la regla NAT IPv4 si no está ya ahí
+    # INYECCIÓN NAT IPv4: Determinar si ya existe una sección declarada de Tabla NAT en UFW
+    if ${SUDO} grep -q "*nat" /etc/ufw/before.rules; then
+      # Insertar regla dentro de la sección NAT preexistente si no ha sido dada de alta antes
       if ! ${SUDO} grep -q "${VPN}-nat-rule" /etc/ufw/before.rules; then
+        echo "::: [INFO] Añadiendo regla MASQUERADE dentro del bloque de Tabla NAT existente (IPv4)..."
         sed_pattern="/^*nat/{n;"
         sed_pattern="${sed_pattern}s/\(:POSTROUTING ACCEPT .*\)/"
         sed_pattern="${sed_pattern}\1\n-I POSTROUTING"
@@ -4447,6 +4550,8 @@ confNetwork() {
         ${SUDO} sed "${sed_pattern}" -i /etc/ufw/before.rules
       fi
     else
+      # Inicializar bloque completo de Tabla NAT e inyectar parámetros de enmascaramiento
+      echo "::: [INFO] Inicializando sección *nat dedicada e inyectando regla MASQUERADE (IPv4)..."
       sed_pattern="/delete these required/i"
       sed_pattern="${sed_pattern} *nat\n:POSTROUTING ACCEPT [0:0]\n"
       sed_pattern="${sed_pattern}-I POSTROUTING"
@@ -4459,12 +4564,11 @@ confNetwork() {
       ${SUDO} sed "${sed_pattern}" -i /etc/ufw/before.rules
     fi
 
+    # INYECCIÓN NAT IPv6: Ejecutar la misma lógica procedimental sobre la pila IPv6 si está habilitada
     if [[ "${pivpnenableipv6}" -eq 1 ]]; then
-      local sed_pattern
-
       if ${SUDO} grep -q "*nat" /etc/ufw/before6.rules; then
-        ### Solo añadir la regla NAT IPv6 si no está ya ahí
         if ! ${SUDO} grep -q "${VPN}-nat-rule" /etc/ufw/before6.rules; then
+          echo "::: [INFO] Añadiendo regla MASQUERADE dentro del bloque de Tabla NAT existente (IPv6)..."
           sed_pattern="/^*nat/{n;"
           sed_pattern="${sed_pattern}s/\(:POSTROUTING ACCEPT .*\)/"
           sed_pattern="${sed_pattern}\1\n-I POSTROUTING"
@@ -4477,6 +4581,7 @@ confNetwork() {
           ${SUDO} sed "${sed_pattern}" -i /etc/ufw/before6.rules
         fi
       else
+        echo "::: [INFO] Inicializando sección *nat dedicada e inyectando regla MASQUERADE (IPv6)..."
         sed_pattern="/delete these required/i"
         sed_pattern="${sed_pattern} *nat\n:POSTROUTING ACCEPT [0:0]\n"
         sed_pattern="${sed_pattern}-I POSTROUTING"
@@ -4490,219 +4595,158 @@ confNetwork() {
       fi
     fi
 
-    # Comprueba si hay reglas UFW existentes e
-    # inserta reglas al principio de la cadena
-    # (en caso de que haya otras reglas que puedan descartar el tráfico)
+    # ORQUESTACIÓN DE REGLAS INTERNAS: Inserción prioritarias en la cabecera de las cadenas de UFW
+    echo "::: [INFO] Evaluando políticas de prioridad. Insertando excepciones de tráfico al inicio de las cadenas de UFW..."
     if ${SUDO} ufw status numbered | grep -E "\[.[0-9]{1}\]" > /dev/null; then
-      ${SUDO} ufw insert 1 \
-        allow "${pivpnPORT}/${pivpnPROTO}" \
-        comment "allow-${VPN}" > /dev/null
+      echo "::: [INFO] Aplicando regla de entrada de puerto para la VPN (${pivpnPORT}/${pivpnPROTO})..."
+      ${SUDO} ufw insert 1 allow "${pivpnPORT}/${pivpnPROTO}" comment "allow-${VPN}" > /dev/null
 
-      ${SUDO} ufw route insert 1 \
-        allow in on "${pivpnDEV}" \
-        from "${pivpnNET}/${subnetClass}" \
-        out on "${IPv4dev}" to any > /dev/null
+      echo "::: [INFO] Aplicando regla de reenvío de tráfico de salida WAN (Forward IPv4)..."
+      ${SUDO} ufw route insert 1 allow in on "${pivpnDEV}" from "${pivpnNET}/${subnetClass}" out on "${IPv4dev}" to any > /dev/null
 
       if [[ "${pivpnenableipv6}" -eq 1 ]]; then
-        ${SUDO} ufw route \
-          allow in on "${pivpnDEV}" \
-          from "${pivpnNETv6}/${subnetClassv6}" \
-          out on "${IPv6dev}" to any > /dev/null
+        echo "::: [INFO] Aplicando regla de reenvío de tráfico de salida WAN (Forward IPv6)..."
+        ${SUDO} ufw route insert 1 allow in on "${pivpnDEV}" from "${pivpnNETv6}/${subnetClassv6}" out on "${IPv6dev}" to any > /dev/null
       fi
     fi
 
-    ${SUDO} ufw reload > /dev/null
-    echo "::: Configuración de UFW completada."
+    # REINICIO DEL CORTAFUEGOS: Aplicar de forma efectiva las directivas en caliente
+    echo "::: [INFO] Recargando el motor y las directivas de UFW..."
+    if ${SUDO} ufw reload > /dev/null; then
+      echo "::: [ÉXITO] Configuración de red y reglas sobre UFW completada con éxito."
+    else
+      echo "::: [AVISO] UFW devolvió advertencias o códigos no estándar durante la recarga."
+    fi
+    
+    # Interfaz visual de cierre de sección para instalaciones interactivas
+    if [[ "${runUnattended}" != 'true' ]]; then
+      whiptail \
+        --backtitle "Asistente de Instalación PiVPN" \
+        --title "Configuración Cortafuegos (UFW)" \
+        --ok-button "Continuar" \
+        --msgbox "Las directivas de red, enmascaramiento NAT y permisos de reenvío de paquetes han sido integrados con éxito en la configuración activa de UFW." \
+        "${r}" "${c}"
+    fi
     return
   fi
 
-  # Ahora algunas comprobaciones para detectar qué reglas necesitamos añadir.
-  # En un sistema recién instalado, todas las políticas deberían ser ACCEPT,
-  # por lo que la única regla requerida sería la de MASQUERADE.
+  # ==========================================================================
+  # CONFIGURACIÓN DIRECTA MEDIANTE IPTABLES / IP6TABLES
+  # ==========================================================================
+  echo "::: [INFO] UFW inactivo o no detectado. Gestionando la topología mediante la suite nativa 'iptables'..."
 
-  if ! ${SUDO} iptables -t nat -S \
-    | grep -q "${VPN}-nat-rule"; then
-    ${SUDO} iptables \
-      -t nat \
-      -I POSTROUTING \
-      -s "${pivpnNET}/${subnetClass}" \
-      -o "${IPv4dev}" \
-      -j MASQUERADE \
-      -m comment \
-      --comment "${VPN}-nat-rule"
+  # REGLA NAT NATIVA (IPv4): Asegurar persistencia de la firma de enmascaramiento
+  if ! ${SUDO} iptables -t nat -S | grep -q "${VPN}-nat-rule"; then
+    echo "::: [INFO] Inyectando regla de enmascaramiento dinámico MASQUERADE (iptables IPv4)..."
+    ${SUDO} iptables -t nat -I POSTROUTING -s "${pivpnNET}/${subnetClass}" -o "${IPv4dev}" -j MASQUERADE -m comment --comment "${VPN}-nat-rule"
   fi
 
+  # REGLA NAT NATIVA (IPv6): Aplicación paralela sobre la pila de red correspondiente
   if [[ "${pivpnenableipv6}" -eq 1 ]]; then
-    if ! ${SUDO} ip6tables -t nat -S \
-      | grep -q "${VPN}-nat-rule"; then
-      ${SUDO} ip6tables \
-        -t nat \
-        -I POSTROUTING \
-        -s "${pivpnNETv6}/${subnetClassv6}" \
-        -o "${IPv6dev}" \
-        -j MASQUERADE \
-        -m comment \
-        --comment "${VPN}-nat-rule"
+    if ! ${SUDO} ip6tables -t nat -S | grep -q "${VPN}-nat-rule"; then
+      echo "::: [INFO] Inyectando regla de enmascaramiento dinámico MASQUERADE (ip6tables IPv6)..."
+      ${SUDO} ip6tables -t nat -I POSTROUTING -s "${pivpnNETv6}/${subnetClassv6}" -o "${IPv6dev}" -j MASQUERADE -m comment --comment "${VPN}-nat-rule"
     fi
   fi
 
-  # Cuenta cuántas reglas hay en la cadena INPUT y FORWARD.
-  # Al analizar la entrada de iptables -S, '^-P' omite las políticas
-  # y 'ufw-' omite las cadenas ufw (en caso de que se encontrara ufw
-  # instalado pero no habilitado).
-
-  # Grep devuelve un código de salida distinto de 0 donde no hay coincidencias,
-  # sin embargo, eso haría que el script saliera,
-  # por estas razones usamos '|| true' para forzar el código de salida 0
-  INPUT_RULES_COUNT="$(${SUDO} iptables -S INPUT \
-    | grep -vcE '(^-P|ufw-)')"
-  FORWARD_RULES_COUNT="$(${SUDO} iptables -S FORWARD \
-    | grep -vcE '(^-P|ufw-)')"
-  INPUT_POLICY="$(${SUDO} iptables -S INPUT \
-    | grep '^-P' \
-    | awk '{print $3}')"
-  FORWARD_POLICY="$(${SUDO} iptables -S FORWARD \
-    | grep '^-P' \
-    | awk '{print $3}')"
+  # MÉTRICAS Y ANÁLISIS DEFENSIVO: Auditoría de las políticas por defecto del sistema anfitrión
+  echo "::: [INFO] Analizando el recuento de reglas previas y directivas estructurales de las cadenas INPUT y FORWARD..."
+  INPUT_RULES_COUNT="$(${SUDO} iptables -S INPUT | grep -vcE '(^-P|ufw-)')"
+  FORWARD_RULES_COUNT="$(${SUDO} iptables -S FORWARD | grep -vcE '(^-P|ufw-)')"
+  INPUT_POLICY="$(${SUDO} iptables -S INPUT | grep '^-P' | awk '{print $3}')"
+  FORWARD_POLICY="$(${SUDO} iptables -S FORWARD | grep '^-P' | awk '{print $3}')"
 
   if [[ "${pivpnenableipv6}" -eq 1 ]]; then
-    INPUT_RULES_COUNTv6="$(${SUDO} ip6tables -S INPUT \
-      | grep -vcE '(^-P|ufw-)')"
-    FORWARD_RULES_COUNTv6="$(${SUDO} ip6tables -S FORWARD \
-      | grep -vcE '(^-P|ufw-)')"
-    INPUT_POLICYv6="$(${SUDO} ip6tables -S INPUT \
-      | grep '^-P' \
-      | awk '{print $3}')"
-    FORWARD_POLICYv6="$(${SUDO} ip6tables -S FORWARD \
-      | grep '^-P' \
-      | awk '{print $3}')"
+    INPUT_RULES_COUNTv6="$(${SUDO} ip6tables -S INPUT | grep -vcE '(^-P|ufw-)')"
+    FORWARD_RULES_COUNTv6="$(${SUDO} ip6tables -S FORWARD | grep -vcE '(^-P|ufw-)')"
+    INPUT_POLICYv6="$(${SUDO} ip6tables -S INPUT | grep '^-P' | awk '{print $3}')"
+    FORWARD_POLICYv6="$(${SUDO} ip6tables -S FORWARD | grep '^-P' | awk '{print $3}')"
   fi
 
-  # Si el recuento de reglas no es cero, asumimos que necesitamos permitir explícitamente el tráfico.
-  # Misma conclusión si no hay reglas y la política no es ACCEPT.
-  # Ten en cuenta que las reglas se añaden a la parte superior de la cadena (usando -I).
-
-  if [[ "${INPUT_RULES_COUNT}" -ne 0 ]] \
-    || [[ "${INPUT_POLICY}" != "ACCEPT" ]]; then
-    if ! ${SUDO} iptables -S \
-      | grep -q "${VPN}-input-rule"; then
-      ${SUDO} iptables \
-        -I INPUT 1 \
-        -i "${IPv4dev}" \
-        -p "${pivpnPROTO}" \
-        --dport "${pivpnPORT}" \
-        -j ACCEPT \
-        -m comment \
-        --comment "${VPN}-input-rule"
+  # DETERMINACIÓN DE APERTURA (INPUT IPv4): Permitir la conexión entrante al puerto del servidor VPN si el tráfico está restringido
+  if [[ "${INPUT_RULES_COUNT}" -ne 0 ]] || [[ "${INPUT_POLICY}" != "ACCEPT" ]]; then
+    if ! ${SUDO} iptables -S | grep -q "${VPN}-input-rule"; then
+      echo "::: [INFO] Políticas restrictivas detectadas en INPUT (IPv4). Abriendo canal exclusivo para puerto: ${pivpnPORT}..."
+      ${SUDO} iptables -I INPUT 1 -i "${IPv4dev}" -p "${pivpnPROTO}" --dport "${pivpnPORT}" -j ACCEPT -m comment --comment "${VPN}-input-rule"
     fi
-
     INPUT_CHAIN_EDITED=1
   else
     INPUT_CHAIN_EDITED=0
   fi
 
+  # DETERMINACIÓN DE APERTURA (INPUT IPv6)
   if [[ "${pivpnenableipv6}" -eq 1 ]]; then
-    if [[ "${INPUT_RULES_COUNTv6}" -ne 0 ]] \
-      || [[ "${INPUT_POLICYv6}" != "ACCEPT" ]]; then
-      if ! ${SUDO} ip6tables -S \
-        | grep -q "${VPN}-input-rule"; then
-        ${SUDO} ip6tables \
-          -I INPUT 1 \
-          -i "${IPv6dev}" \
-          -p "${pivpnPROTO}" \
-          --dport "${pivpnPORT}" \
-          -j ACCEPT \
-          -m comment \
-          --comment "${VPN}-input-rule"
+    if [[ "${INPUT_RULES_COUNTv6}" -ne 0 ]] || [[ "${INPUT_POLICYv6}" != "ACCEPT" ]]; then
+      if ! ${SUDO} ip6tables -S | grep -q "${VPN}-input-rule"; then
+        echo "::: [INFO] Políticas restrictivas detectadas en INPUT (IPv6). Abriendo canal exclusivo para puerto: ${pivpnPORT}..."
+        ${SUDO} ip6tables -I INPUT 1 -i "${IPv6dev}" -p "${pivpnPROTO}" --dport "${pivpnPORT}" -j ACCEPT -m comment --comment "${VPN}-input-rule"
       fi
-
       INPUT_CHAIN_EDITEDv6=1
     else
       INPUT_CHAIN_EDITEDv6=0
     fi
   fi
 
-  if [[ "${FORWARD_RULES_COUNT}" -ne 0 ]] \
-    || [[ "${FORWARD_POLICY}" != "ACCEPT" ]]; then
-    if ! ${SUDO} iptables -S \
-      | grep -q "${VPN}-forward-rule"; then
-      ${SUDO} iptables \
-        -I FORWARD 1 \
-        -d "${pivpnNET}/${subnetClass}" \
-        -i "${IPv4dev}" \
-        -o "${pivpnDEV}" \
-        -m conntrack \
-        --ctstate RELATED,ESTABLISHED \
-        -j ACCEPT \
-        -m comment \
-        --comment "${VPN}-forward-rule"
-      ${SUDO} iptables \
-        -I FORWARD 2 \
-        -s "${pivpnNET}/${subnetClass}" \
-        -i "${pivpnDEV}" \
-        -o "${IPv4dev}" \
-        -j ACCEPT \
-        -m comment \
-        --comment "${VPN}-forward-rule"
+  # INTEGRIDAD DEL TRÁFICO (FORWARD IPv4): Habilitar la interconexión interna de paquetes aislados
+  if [[ "${FORWARD_RULES_COUNT}" -ne 0 ]] || [[ "${FORWARD_POLICY}" != "ACCEPT" ]]; then
+    if ! ${SUDO} iptables -S | grep -q "${VPN}-forward-rule"; then
+      echo "::: [INFO] Políticas restrictivas detectadas en FORWARD (IPv4). Inyectando reglas de tránsito mutuo..."
+      ${SUDO} iptables -I FORWARD 1 -d "${pivpnNET}/${subnetClass}" -i "${IPv4dev}" -o "${pivpnDEV}" -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT -m comment --comment "${VPN}-forward-rule"
+      ${SUDO} iptables -I FORWARD 2 -s "${pivpnNET}/${subnetClass}" -i "${pivpnDEV}" -o "${IPv4dev}" -j ACCEPT -m comment --comment "${VPN}-forward-rule"
     fi
-
     FORWARD_CHAIN_EDITED=1
   else
     FORWARD_CHAIN_EDITED=0
   fi
 
+  # INTEGRIDAD DEL TRÁFICO (FORWARD IPv6)
   if [[ "${pivpnenableipv6}" -eq 1 ]]; then
-    if [[ "${FORWARD_RULES_COUNTv6}" -ne 0 ]] \
-      || [[ "${FORWARD_POLICYv6}" != "ACCEPT" ]]; then
-      if ! ${SUDO} ip6tables -S \
-        | grep -q "${VPN}-forward-rule"; then
-        ${SUDO} ip6tables \
-          -I FORWARD 1 \
-          -d "${pivpnNETv6}/${subnetClassv6}" \
-          -i "${IPv6dev}" \
-          -o "${pivpnDEV}" \
-          -m conntrack \
-          --ctstate RELATED,ESTABLISHED \
-          -j ACCEPT \
-          -m comment \
-          --comment "${VPN}-forward-rule"
-        ${SUDO} ip6tables \
-          -I FORWARD 2 \
-          -s "${pivpnNETv6}/${subnetClassv6}" \
-          -i "${pivpnDEV}" \
-          -o "${IPv6dev}" \
-          -j ACCEPT \
-          -m comment \
-          --comment "${VPN}-forward-rule"
+    if [[ "${FORWARD_RULES_COUNTv6}" -ne 0 ]] || [[ "${FORWARD_POLICYv6}" != "ACCEPT" ]]; then
+      if ! ${SUDO} ip6tables -S | grep -q "${VPN}-forward-rule"; then
+        echo "::: [INFO] Políticas restrictivas detectadas en FORWARD (IPv6). Inyectando reglas de tránsito mutuo..."
+        ${SUDO} ip6tables -I FORWARD 1 -d "${pivpnNETv6}/${subnetClassv6}" -i "${IPv6dev}" -o "${pivpnDEV}" -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT -m comment --comment "${VPN}-forward-rule"
+        ${SUDO} ip6tables -I FORWARD 2 -s "${pivpnNETv6}/${subnetClassv6}" -i "${pivpnDEV}" -o "${IPv6dev}" -j ACCEPT -m comment --comment "${VPN}-forward-rule"
       fi
-
       FORWARD_CHAIN_EDITEDv6=1
     else
       FORWARD_CHAIN_EDITEDv6=0
     fi
   fi
 
+  # PERSISTENCIA DEL ESTADO: Guardado transaccional según la estructura interna del sistema operativo
+  echo "::: [INFO] Consolidando y guardando las nuevas reglas criptográficas y de red en el almacenamiento persistente..."
   case "${PLAT}" in
     Debian | Raspbian | Ubuntu)
-      ${SUDO} iptables-save \
-        | ${SUDO} tee /etc/iptables/rules.v4 > /dev/null
-      ${SUDO} ip6tables-save \
-        | ${SUDO} tee /etc/iptables/rules.v6 > /dev/null
+      ${SUDO} iptables-save | ${SUDO} tee /etc/iptables/rules.v4 > /dev/null
+      ${SUDO} ip6tables-save | ${SUDO} tee /etc/iptables/rules.v6 > /dev/null
       ;;
-	Alpine)
-	  ${SUDO} rc-service iptables save
-	  ${SUDO} rc-service ip6tables save
-	  ${SUDO} rc-update add iptables
-	  ${SUDO} rc-update add ip6tables
-	  ;;
+    Alpine)
+      ${SUDO} rc-service iptables save > /dev/null 2>&1
+      ${SUDO} rc-service ip6tables save > /dev/null 2>&1
+      ${SUDO} rc-update add iptables > /dev/null 2>&1
+      ${SUDO} rc-update add ip6tables > /dev/null 2>&1
+      ;;
   esac
 
+  # METADATOS: Exportar el mapa relacional de modificaciones realizadas al archivo temporal de variables globales
   {
     echo "INPUT_CHAIN_EDITED=${INPUT_CHAIN_EDITED}"
     echo "FORWARD_CHAIN_EDITED=${FORWARD_CHAIN_EDITED}"
     echo "INPUT_CHAIN_EDITEDv6=${INPUT_CHAIN_EDITEDv6}"
     echo "FORWARD_CHAIN_EDITEDv6=${FORWARD_CHAIN_EDITEDv6}"
   } >> "${tempsetupVarsFile}"
+
+  echo "::: [ÉXITO] Configuración de red nativa mediante iptables completada con éxito."
+
+  # Interfaz visual de cierre de sección para instalaciones interactivas
+  if [[ "${runUnattended}" != 'true' ]]; then
+    whiptail \
+      --backtitle "Asistente de Instalación PiVPN" \
+      --title "Configuración Cortafuegos (iptables)" \
+      --ok-button "Continuar" \
+      --msgbox "Las directivas de red, tablas NAT y enmascaramiento de paquetes con la suite iptables han sido registradas y persistidas correctamente en el almacenamiento del sistema." \
+      "${r}" "${c}"
+  fi
 }
 
 confLogging() {
