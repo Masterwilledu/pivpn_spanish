@@ -2714,75 +2714,111 @@ writeWireguardTempVarsFile() {
 }
 
 askWhichVPN() {
+  # ==============================================================================
+  #         SELECCIÓN E INSPECCIÓN DEL PROTOCOLO / MOTOR VPN
+  # ==============================================================================
+  # Determina si el sistema desplegará WireGuard o OpenVPN, validando la
+  # compatibilidad de la plataforma tanto en modo interactivo como desatendido.
+
+  local -a chooseVPNCmd=()
+  local -a VPNChooseOptions=()
+  local wg_support="${WIREGUARD_SUPPORT:-0}"
+  local ovpn_support="${OPENVPN_SUPPORT:-0}"
+
+  # Normalizar el protocolo entrante a minúsculas si ya se ha predefinido
+  if [[ -n "${VPN}" ]]; then
+    VPN="${VPN,,}"
+  fi
+
+  # Validación preventiva integral de capacidades de la arquitectura/SO
+  if [[ "${wg_support}" -ne 1 && "${ovpn_support}" -ne 1 ]]; then
+    err "Error crítico: Esta plataforma (${PLAT:-Desconocida} / ${DPKG_ARCH:-Desconocida}) no admite ningún motor VPN compatible."
+    exit 1
+  fi
+
+  # ------------------------------------------------------------------------------
+  # MODO 1: INSTALACIÓN DESATENDIDA (AUTOMATIZADA / SETUPVARS)
+  # ------------------------------------------------------------------------------
   if [[ "${runUnattended}" == 'true' ]]; then
-    if [[ "${WIREGUARD_SUPPORT}" -eq 1 ]]; then
-      if [[ -z "${VPN}" ]]; then
-        echo ":: No se especificó ningún protocolo VPN, usando WireGuard"
+    echo "::: [INFO] Detectado modo de instalación desatendida. Procesando parámetros..."
+
+    if [[ -z "${VPN}" ]]; then
+      # Selección automática guiada por prioridades técnicas de soporte del host
+      if [[ "${wg_support}" -eq 1 ]]; then
+        echo "::: [AVISO] No se especificó protocolo VPN. Seleccionando WireGuard por defecto debido a la arquitectura."
         VPN="wireguard"
       else
-        VPN="${VPN,,}"
-
-        if [[ "${VPN}" == "wireguard" ]]; then
-          echo "::: WireGuard se instalará"
-        elif [[ "${VPN}" == "openvpn" ]]; then
-          echo "::: OpenVPN se instalará"
-        else
-          err ":: ${VPN} no es un protocolo VPN compatible, por favor especifica 'wireguard' o 'openvpn'"
-          exit 1
-        fi
+        echo "::: [AVISO] No se especificó protocolo VPN. Seleccionando OpenVPN por defecto debido a la arquitectura."
+        VPN="openvpn"
       fi
     else
-      if [[ -z "${VPN}" ]]; then
-        echo ":: No se especificó ningún protocolo VPN, usando OpenVPN"
-        VPN="openvpn"
-      else
-        VPN="${VPN,,}"
-
-        if [[ "${VPN}" == "openvpn" ]]; then
-          echo "::: OpenVPN se instalará"
-        else
-          err ":: ${VPN} no es un protocolo VPN compatible en ${DPKG_ARCH} ${PLAT}, solo 'openvpn' lo es"
+      # Validar el protocolo solicitado de forma explícita frente a las capacidades reales
+      if [[ "${VPN}" == "wireguard" ]]; then
+        if [[ "${wg_support}" -ne 1 ]]; then
+          err "Fallo de validación: WireGuard no es compatible con el hardware o entorno actual (${DPKG_ARCH} ${PLAT})."
           exit 1
         fi
-      fi
-    fi
-  else
-    if [[ "${WIREGUARD_SUPPORT}" -eq 1 ]] \
-      && [[ "${OPENVPN_SUPPORT}" -eq 1 ]]; then
-      chooseVPNCmd=(whiptail
-        --backtitle "Configuración Inicial del Servidor"
-        --title "Selección de Protocolo VPN"
-        --separate-output
-        --radiolist "Selecciona el motor VPN que deseas instalar en tu sistema:
-
-• WireGuard (Recomendado): Criptografía de última generación, máxima velocidad, conexión casi instantánea y excelente ahorro de batería en móviles.
-• OpenVPN: El estándar tradicional. Muy flexible, altamente compatible y recomendado si necesitas usar TCP para evadir bloqueos de red estrictos.
-
-(Presiona la barra espaciadora para marcar tu opción):" "${r}" "${c}" 2)
-      VPNChooseOptions=(WireGuard "" on
-        OpenVPN "" off)
-
-      if VPN="$("${chooseVPNCmd[@]}" \
-        "${VPNChooseOptions[@]}" \
-        2>&1 > /dev/tty)"; then
-        echo "::: Usando VPN: ${VPN}"
-        VPN="${VPN,,}"
+        echo "::: [INFO] Protocolo validado: Se procederá con el aprovisionamiento de WireGuard."
+      elif [[ "${VPN}" == "openvpn" ]]; then
+        if [[ "${ovpn_support}" -ne 1 ]]; then
+          err "Fallo de validación: OpenVPN no está disponible o no es compatible con este sistema."
+          exit 1
+        fi
+        echo "::: [INFO] Protocolo validado: Se procederá con el aprovisionamiento de OpenVPN."
       else
-        err "::: Cancelar seleccionado, saliendo...."
+        err "Parámetro inválido: El protocolo '${VPN}' no es reconocido. Opciones válidas: 'wireguard' o 'openvpn'."
         exit 1
       fi
-    elif [[ "${OPENVPN_SUPPORT}" -eq 1 ]] \
-      && [[ "${WIREGUARD_SUPPORT}" -eq 0 ]]; then
-      echo "::: Usando VPN: OpenVPN"
+    fi
+
+  # ------------------------------------------------------------------------------
+  # MODO 2: INSTALACIÓN INTERACTIVA (ASISTIDA POR MENÚS DE DIÁLOGO WHIPTAIL)
+  # ------------------------------------------------------------------------------
+  else
+    if [[ "${wg_support}" -eq 1 && "${ovpn_support}" -eq 1 ]]; then
+      # Configuración de comando interactivo con botones de acción traducidos
+      chooseVPNCmd=(
+        whiptail
+        --backtitle "Configuración Inicial del Servidor PiVPN"
+        --title "Selección de Protocolo VPN"
+        --ok-button "Seleccionar"
+        --cancel-button "Cancelar"
+        --separate-output
+        --radiolist "Selecciona el motor VPN que deseas instalar en tu sistema:\n\n• WireGuard (Recomendado): Criptografía de última generación, máxima velocidad de transferencia, latencia mínima y óptimo consumo de batería en smartphones.\n• OpenVPN: El estándar clásico de la industria. Altamente flexible, robusto y recomendado si necesitas usar transporte TCP para evadir inspecciones de red o firewalls corporativos estrictos.\n\n(Presiona la barra espaciadora para marcar tu opción y pulsa Intro para confirmar):" 
+        "${r:-22}" "${c:-78}" 2
+      )
+      
+      VPNChooseOptions=(
+        "WireGuard" "Rendimiento avanzado y arquitectura moderna" on
+        "OpenVPN" "Estabilidad convencional y máxima compatibilidad" off
+      )
+
+      # Captura segura del flujo de la interfaz interactiva tty
+      if VPN="$("${chooseVPNCmd[@]}" "${VPNChooseOptions[@]}" 2>&1 >/dev/tty)"; then
+        VPN="${VPN,,}"
+        echo "::: [INFO] Motor de red seleccionado por el usuario: ${VPN}"
+      else
+        echo "::: [AVISO] Cancelación detectada en el cuadro de diálogo. Abortando instalación de forma segura..." >&2
+        exit 1
+      fi
+    elif [[ "${ovpn_support}" -eq 1 ]]; then
+      echo "::: [INFO] Entorno restrictivo detectado: Solo OpenVPN es viable en esta máquina."
       VPN="openvpn"
-    elif [[ "${OPENVPN_SUPPORT}" -eq 0 ]] \
-      && [[ "${WIREGUARD_SUPPORT}" -eq 1 ]]; then
-      echo "::: Usando VPN: WireGuard"
+    elif [[ "${wg_support}" -eq 1 ]]; then
+      echo "::: [INFO] Entorno restrictivo detectado: Solo WireGuard es viable en esta máquina."
       VPN="wireguard"
     fi
   fi
 
-  echo "VPN=${VPN}" >> "${tempsetupVarsFile}"
+  # ------------------------------------------------------------------------------
+  # PERSISTENCIA TRANSACCIONAL DE CONFIGURACIÓN
+  # ------------------------------------------------------------------------------
+  if ! echo "VPN=${VPN}" >> "${tempsetupVarsFile}"; then
+    err "Fallo crítico de E/S: No se pudo volcar la variable del protocolo seleccionado en '${tempsetupVarsFile}'."
+    exit 1
+  fi
+  
+  echo "::: [ÉXITO] Configuración de pila consolidada. Servidor asignado a: ${VPN}"
 }
 
 askAboutCustomizing() {
