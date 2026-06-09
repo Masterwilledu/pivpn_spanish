@@ -3799,8 +3799,8 @@ askEncryption() {
       --title "Selección del Motor de Cifrado" \
       --yes-button "Moderno (ECDSA)" \
       --no-button "Tradicional (RSA)" \
-      --yesno "OpenVPN permite desplegar dos arquitecturas criptográficas distintas:\n\n• Perfil Moderno (ECDSA): Utiliza criptografía de Curvas Elípticas. Es drásticamente más rápido, consume menos CPU y genera certificados ligeros con seguridad máxima. Cifra además la cabecera mediante 'tls-crypt-v2'.\n• Perfil Tradicional (RSA): Garantiza retrocompatibilidad total con dispositivos u operating systems muy antiguos, requiriendo mayor cómputo y tiempo de inicialización.\n\nSe recomienda encarecidamente utilizar el perfil Moderno (ECDSA)." \
-      "${r:-20}" "${c:-78}"
+      --yesno "OpenVPN permite desplegar dos arquitecturas criptográficas distintas:\n\n• Perfil Moderno (ECDSA): Utiliza criptografía de Curvas Elípticas. Es drásticamente más rápido, consume menos CPU y genera certificados ligeros con seguridad máxima. Además cifra la cabecera mediante 'tls-crypt-v2'.\n• Perfil Tradicional (RSA): Garantiza retrocompatibilidad total con dispositivos o sistemas operativos antiguos, requiriendo mayor cómputo y tiempo de inicialización.\n\nSe recomienda encarecidamente utilizar el perfil Moderno (ECDSA)." \
+      "${r}" "${c}"
     
     crypto_choice="$?"
 
@@ -3821,7 +3821,7 @@ askEncryption() {
         --ok-button "Seleccionar" \
         --cancel-button "Cancelar" \
         --radiolist "Selecciona el tamaño del certificado basado en curvas elípticas (ECDSA):\n\n(Usa las flechas para moverte y la barra espaciadora para marcar la opción)\n\nNota: Una clave elíptica de 256 bits provee la misma resistencia que una clave RSA de 3072 bits, reduciendo la latencia de conexión." \
-        "${r:-18}" "${c:-78}" 3 \
+        "${r}" "${c}" 3 \
         "256" "ECDSA de 256 bits (Balance idóneo velocidad/seguridad)" ON \
         "384" "ECDSA de 384 bits (Criptografía militar reforzada)" OFF \
         "521" "ECDSA de 521 bits (Máxima seguridad de grado gubernamental)" OFF \
@@ -3838,7 +3838,7 @@ askEncryption() {
         --ok-button "Seleccionar" \
         --cancel-button "Cancelar" \
         --radiolist "Selecciona el tamaño del certificado clásico RSA:\n\n[AVISO] Configurar claves superiores a 2048 bits incrementará significativamente el uso de CPU durante el handshake de los clientes." \
-        "${r:-16}" "${c:-78}" 3 \
+        "${r}" "${c}" 3 \
         "2048" "RSA de 2048 bits (Estándar comercial seguro y compatible)" ON \
         "3072" "RSA de 3072 bits (Seguridad avanzada a medio rendimiento)" OFF \
         "4096" "RSA de 4096 bits (Seguridad ultra alta / Procesamiento lento)" OFF \
@@ -3861,7 +3861,7 @@ askEncryption() {
         --yes-button "Usar Predefinidos" \
         --no-button "Generar Propios" \
         --yesno "La generación manual de parámetros Diffie-Hellman (DH) requiere un uso exhaustivo de la entropía del sistema y puede demorar horas en hardware limitado como la Raspberry Pi.\n\n¿Deseas utilizar los parámetros estándar precalculados y validados internacionalmente por la IETF (Recomendado)?\n\nSi prefieres obligar al host a calcular un grupo DH único a costa de tiempo de espera, selecciona 'Generar Propios'." \
-        "${r:-20}" "${c:-78}"; then
+        "${r}" "${c}"; then
         
         USE_PREDEFINED_DH_PARAM=1
         echo "::: [INFO] El usuario ha seleccionado parámetros DH predefinidos."
