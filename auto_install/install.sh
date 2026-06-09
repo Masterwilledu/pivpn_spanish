@@ -2077,100 +2077,123 @@ chooseUser() {
 }
 
 isRepo() {
-  # Si el directorio no tiene una carpeta .git no es un repositorio
-  echo -n ":::    Verificando si ${1} es un repositorio..."
-  cd "${1}" &> /dev/null || {
-    echo " ¡no encontrado!"
+  # ==============================================================================
+  #       VERIFICACIÓN DE INTEGRIDAD DE REPOSITORIO GIT LOCAL
+  # ==============================================================================
+  # Evalúa si un directorio específico existe y está inicializado formalmente
+  # como un árbol de trabajo válido de Git.
+
+  local target_dir="${1}"
+  echo "::: [INFO] Verificando la presencia e integridad del repositorio en: ${target_dir}"
+
+  if [[ ! -d "${target_dir}" ]]; then
+    echo "::: [AVISO] El directorio de destino no existe o no es accesible."
     return 1
-  }
-  ${SUDO} ${GITBIN} status &> /dev/null && echo " ¡OK!"
-  #shellcheck disable=SC2317
-  return 0 || echo " ¡no encontrado!"
-  #shellcheck disable=SC2317
-  return 1
+  fi
+
+  # OPTIMIZACIÓN: Verificación nativa e independiente del directorio de ejecución actual
+  if ${SUDO} ${GITBIN} -C "${target_dir}" rev-parse --is-inside-work-tree &>/dev/null; then
+    echo "::: [INFO] Estructura Git válida detectada en la ruta objetivo."
+    return 0
+  else
+    echo "::: [AVISO] La ruta existe pero no corresponde a un repositorio Git válido."
+    return 1
+  fi
+}
+
+cloneAndSetupRepo() {
+  # ==============================================================================
+  #       TRABAJADOR INTERNO: CLONACIÓN, MONITOREO Y CONMUTACIÓN DE RAMAS
+  # ==============================================================================
+  # Centraliza la lógica de descarga para mitigar la duplicación de código.
+  # Garantiza operaciones de limpieza seguras y valida la correcta ejecución en background.
+
+  local target_dir="${1}"
+  local repo_url="${2}"
+  local parent_dir
+  parent_dir="$(dirname "${target_dir}")"
+
+  echo "::: [INFO] Saneando el espacio de trabajo local para evitar colisiones..."
+  
+  # Medida de protección crítica contra borrados accidentales en la raíz
+  if [[ -n "${target_dir}" && "${target_dir}" != "/" && "${target_dir}" != "." ]]; then
+    ${SUDO} rm -rf "${target_dir}"
+  fi
+
+  echo "::: [INFO] Descargando componentes del repositorio remoto..."
+  
+  # Posicionarse en el directorio padre antes de clonar para evitar bloqueos de Git
+  cd "${parent_dir}" || exit 1
+
+  # Clonación asíncrona optimizada en profundidad (Shallow Clone)
+  ${SUDO} ${GITBIN} clone -q \
+    --depth 1 \
+    --no-single-branch \
+    "${repo_url}" \
+    "${target_dir}" > /dev/null 2>&1 &
+  
+  # Invocar el monitor visual de progreso mediante su PID
+  spinner $!
+
+  # Validación post-clonación: Asegurar que el proceso asíncrono se consolidó con éxito
+  if [[ ! -d "${target_dir}" ]]; then
+    err "Fallo crítico: No se pudo clonar el repositorio remoto en la ruta: '${target_dir}'"
+    exit 1
+  fi
+
+  cd "${target_dir}" || exit 1
+  echo "::: [ÉXITO] Sincronización del repositorio base completada."
+
+  # ------------------------------------------------------------------------------
+  # GESTIÓN DE RAMAS (PRODUCCIÓN / DESARROLLO CUSTOM / TESTING)
+  # ------------------------------------------------------------------------------
+  if [[ -n "${pivpnGitBranch}" ]]; then
+    echo "::: [INFO] Conmutando a la rama de desarrollo personalizada: '${pivpnGitBranch}'..."
+    if ${SUDOE} ${GITBIN} checkout -q "${pivpnGitBranch}"; then
+      echo "::: [ÉXITO] Despliegue completado sobre la rama: '${pivpnGitBranch}'."
+    else
+      err "No se pudo cambiar a la rama solicitada '${pivpnGitBranch}'. Verifica su existencia en el origen."
+      exit 1
+    fi
+  elif [[ -n "${TESTING:-}" ]]; then
+    echo "::: [AVISO] Variable de entorno TESTING detectada. Conmutando a la rama 'test'..."
+    if ${SUDOE} ${GITBIN} checkout -q test; then
+      echo "::: [ÉXITO] Despliegue completado sobre la rama de pruebas: 'test'."
+    else
+      err "No se pudo conmutar el repositorio a la rama 'test'."
+      exit 1
+    fi
+  fi
 }
 
 updateRepo() {
+  # ==============================================================================
+  #         ACTUALIZACIÓN / REPARACIÓN DE REPOSITORIO EXISTENTE
+  # ==============================================================================
+  
   if [[ "${UpdateCmd}" == "Repair" ]]; then
-    echo -n "::: Reparando una instalación existente, "
-    echo "no se descargarán/actualizarán los repositorios locales"
+    echo "::: [INFO] Modo reparación activo. Preservando el estado del repositorio local actual sin realizar descargas."
   else
-    # Obtener las últimas confirmaciones (commits)
-    echo -n ":::     Actualizando el repositorio en ${1} desde ${2} ..."
-
-    ### CORRÍGEME: Nunca llames a rm -rf con una variable simple. ¡Nunca más como SU!
-    #${SUDO} rm -rf "${1}"
-    if [[ -n "${1}" ]]; then
-      ${SUDO} rm -rf "$(dirname "${1}")/pivpn"
-    fi
-
-    # Regresar a /usr/local/src de lo contrario git se quejará cuando el
-    # directorio de trabajo actual acabe de ser eliminado (/usr/local/src/pivpn).
-    cd /usr/local/src \
-      && ${SUDO} ${GITBIN} clone -q \
-        --depth 1 \
-        --no-single-branch \
-        "${2}" \
-        "${1}" \
-        > /dev/null &
-    spinner $!
-    cd "${1}" || exit 1
-    echo " ¡hecho!"
-
-    if [[ -n "${pivpnGitBranch}" ]]; then
-      echo ":::     Cambiando a la rama '${pivpnGitBranch}' de ${2} en ${1}..."
-      ${SUDOE} ${GITBIN} checkout -q "${pivpnGitBranch}"
-      echo ":::     ¡Cambio a la rama personalizada hecho!"
-    elif [[ -z "${TESTING+x}" ]]; then
-      :
-    else
-      echo ":::     Cambiando a la rama 'test' de ${2} en ${1}..."
-      ${SUDOE} ${GITBIN} checkout -q test
-      echo ":::     ¡Cambio a la rama 'test' hecho!"
-    fi
+    echo "::: [INFO] Iniciando la actualización y sobreescritura controlada del repositorio..."
+    cloneAndSetupRepo "${1}" "${2}"
   fi
 }
 
 makeRepo() {
-  # Eliminar la interfaz que no es un repositorio y clonar la interfaz
-  echo -n ":::    Clonando ${2} en ${1} ..."
-
-  ### CORRÍGEME: Nunca llames a rm -rf con una variable simple. ¡Nunca más como SU!
-  #${SUDO} rm -rf "${1}"
-  if [[ -n "${1}" ]]; then
-    ${SUDO} rm -rf "$(dirname "${1}")/pivpn"
-  fi
-
-  # Regresar a /usr/local/src de lo contrario git se quejará cuando el
-  # directorio de trabajo actual acabe de ser eliminado (/usr/local/src/pivpn).
-  cd /usr/local/src \
-    && ${SUDO} ${GITBIN} clone -q \
-      --depth 1 \
-      --no-single-branch \
-      "${2}" \
-      "${1}" \
-      > /dev/null &
-  spinner $!
-  cd "${1}" || exit 1
-  echo " ¡hecho!"
-
-  if [[ -n "${pivpnGitBranch}" ]]; then
-    echo ":::     Cambiando a la rama '${pivpnGitBranch}' de ${2} en ${1}..."
-    ${SUDOE} ${GITBIN} checkout -q "${pivpnGitBranch}"
-    echo ":::     ¡Cambio a la rama personalizada hecho!"
-  elif [[ -z "${TESTING+x}" ]]; then
-    :
-  else
-    echo ":::     Cambiando a la rama 'test' de ${2} en ${1}..."
-    ${SUDOE} ${GITBIN} checkout -q test
-    echo ":::     ¡Cambio a la rama 'test' hecho!"
-  fi
+  # ==============================================================================
+  #         INICIALIZACIÓN LIMPIA DE REPOSITORIO INEXISTENTE
+  # ==============================================================================
+  
+  echo "::: [INFO] Procediendo con una inicialización limpia del repositorio de fuentes..."
+  cloneAndSetupRepo "${1}" "${2}"
 }
 
 getGitFiles() {
-  # Configurar repositorios git para archivos base
-  echo ":::"
-  echo "::: Verificando si existen archivos base..."
+  # ==============================================================================
+  #         ORQUESTADOR DE EVALUACIÓN DE ARCHIVOS BASE
+  # ==============================================================================
+  
+  echo "::: [INFO] Evaluando la validez del árbol de directorios de PiVPN..."
 
   if isRepo "${1}"; then
     updateRepo "${1}" "${2}"
@@ -2180,16 +2203,22 @@ getGitFiles() {
 }
 
 cloneOrUpdateRepos() {
-  # Clonar/Actualizar los repositorios
-  # /usr/local siempre debería existir, aunque no estoy seguro de la subcarpeta src
-  ${SUDO} mkdir -p /usr/local/src
+  # ==============================================================================
+  #         PUNTO DE ENTRADA GLOBAL PARA LA ADQUISICIÓN DE FUENTES
+  # ==============================================================================
+  
+  echo "::: [INFO] Asegurando jerarquía de directorios del sistema en /usr/local/src..."
+  
+  if ! ${SUDO} mkdir -p /usr/local/src; then
+    err "Error de entorno: No se pudo crear o verificar el directorio '/usr/local/src'. Revisa los privilegios del sistema."
+    exit 1
+  fi
 
-  # Obtener archivos de Git
-  getGitFiles "${pivpnFilesDir}" "${pivpnGitUrl}" \
-    || {
-      err "!!! No se pudo clonar ${pivpnGitUrl} en ${pivpnFilesDir}, no se puede continuar."
-      exit 1
-    }
+  # Ejecución de la descarga o actualización de archivos Git
+  if ! getGitFiles "${pivpnFilesDir}" "${pivpnGitUrl}"; then
+    err "Error catastrófico: No se pudo procesar la descarga de '${pivpnGitUrl}' hacia '${pivpnFilesDir}'."
+    exit 1
+  fi
 }
 
 installPiVPN() {
