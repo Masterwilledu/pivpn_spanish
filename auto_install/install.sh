@@ -10,10 +10,16 @@ export LC_ALL=es_ES.UTF-8
 # curl -sSfL https://install.pivpn.io | bash
 # Asegúrate de tener `curl` instalado
 
-######## VARIABLES #########
+# ==============================================================================
+#                 CONFIGURACIÓN DE RUTAS Y VARIABLES GLOBALES
+# ==============================================================================
+
 pivpnGitUrl="https://github.com/pivpn/pivpn.git"
-# Descomenta para usar una rama personalizada para los archivos locales de pivpn
-#pivpnGitBranch="custombranchtocheckout"
+
+# Para desarrollo: Descomentar y asignar una rama específica si se desea probar código en pruebas
+# pivpnGitBranch="custombranchtocheckout"
+
+# Archivos y directorios clave del ecosistema PiVPN
 setupVarsFile="setupVars.conf"
 setupConfigDir="/etc/pivpn"
 tempsetupVarsFile="/tmp/setupVars.conf"
@@ -21,89 +27,140 @@ pivpnFilesDir="/usr/local/src/pivpn"
 pivpnScriptDir="/opt/pivpn"
 GITBIN="/usr/bin/git"
 
+# Integraciones de terceros (Pi-hole / DNSMasq)
 piholeVersions="/etc/pihole/versions"
 dnsmasqConfig="/etc/dnsmasq.d/02-pivpn.conf"
 
+# Archivos de red y asignaciones de seguridad de OpenVPN
 dhcpcdFile="/etc/dhcpcd.conf"
 ovpnUserGroup="openvpn:openvpn"
 
-######## Variables de Paquetes ########
+# ==============================================================================
+#            GESTIÓN DE PAQUETES Y ARREGLOS DE DEPENDENCIAS
+# ==============================================================================
+
 PKG_MANAGER="apt-get"
-### CORRÍGEME: citar UPDATE_PKG_CACHE y PKG_INSTALL cuelga el script,
-### shellcheck SC2086
-UPDATE_PKG_CACHE="${PKG_MANAGER} update -y"
-PKG_INSTALL="${PKG_MANAGER} --yes --no-install-recommends install"
+
+# SOLUCIÓN DE ERROR CRÍTICO: El uso de cadenas simples provocaba fallos de parsing en ShellCheck (SC2086) 
+# y cuelgues aleatorios en el flujo. Se transforman a arreglos nativos de Bash para una expansión segura.
+UPDATE_PKG_CACHE=("${PKG_MANAGER}" "update" "-y")
+PKG_INSTALL=("${PKG_MANAGER}" "--yes" "--no-install-recommends" "install")
+
+# Comando de monitorización (mantiene estructura de cadena debido al uso de tuberías/pipes)
 PKG_COUNT="${PKG_MANAGER} -s -o Debug::NoLocking=true upgrade | grep -c ^Inst || true"
 CHECK_PKG_INSTALLED='dpkg-query -s'
 
-# Dependencias requeridas por el script,
-# independientemente del protocolo VPN elegido
-BASE_DEPS=(git tar curl grep bind9-dnsutils grepcidr whiptail net-tools)
-BASE_DEPS+=(bsdmainutils bash-completion)
+# Dependencias base necesarias para sistemas Debian / Ubuntu (independientes del protocolo)
+BASE_DEPS=(
+  git 
+  tar 
+  curl 
+  grep 
+  bind9-dnsutils 
+  grepcidr 
+  whiptail 
+  net-tools
+  bsdmainutils 
+  bash-completion
+)
 
-BASE_DEPS_ALPINE=(git grep bind-tools newt net-tools bash-completion coreutils)
-BASE_DEPS_ALPINE+=(openssl util-linux openrc iptables ip6tables coreutils sed)
-BASE_DEPS_ALPINE+=(perl libqrencode-tools)
+# Dependencias base optimizadas exclusivamente para entornos Alpine Linux
+BASE_DEPS_ALPINE=(
+  git 
+  grep 
+  bind-tools 
+  newt 
+  net-tools 
+  bash-completion 
+  coreutils
+  openssl 
+  util-linux 
+  openrc 
+  iptables 
+  ip6tables 
+  sed
+  perl 
+  libqrencode-tools
+)
 
-# Dependencias que realmente instaló el script. Por ejemplo si el
-# script requiere grep y bind9-dnsutils pero bind9-dnsutils ya está instalado, guardamos
-# grep aquí. De esta manera, al desinstalar PiVPN no pediremos eliminar paquetes
-# que el usuario haya instalado por otras razones
+# Registro dinámico de paquetes instalados durante esta sesión. 
+# Evita purgar utilidades preexistentes del usuario al ejecutar una desinstalación.
 INSTALLED_PACKAGES=()
 
-######## URLs ########
+# ==============================================================================
+#                         RECURSOS Y COMPONENTES EXTERNOS
+# ==============================================================================
+
 easyrsaVer="3.2.3"
 easyrsaRel="https://github.com/OpenVPN/easy-rsa/releases/download/v${easyrsaVer}/EasyRSA-${easyrsaVer}.tgz"
 
-######## Banderas no documentadas. Shhh ########
+# ==============================================================================
+#          BANDERAS DE AUTOMATIZACIÓN (MODO DESATENDIDO / ADVANCED)
+# ==============================================================================
+
 runUnattended=false
 usePiholeDNS=false
 skipSpaceCheck=false
 reconfigure=false
 showUnsupportedNICs=false
 
-######## Algunas variables que podrían estar vacías
-# pero necesitan definirse para comprobaciones
+# Inicializaciones preventivas de variables globales para mitigar errores 
+# de referencia vacía ("unbound variable") durante comprobaciones lógicas estrictas.
 pivpnPERSISTENTKEEPALIVE=""
 pivpnDNS2=""
 
-######## Configuración relacionada con IPv6
-# el parámetro cli "--noipv6" permite deshabilitar IPv6, lo que también evita la ruta
-# IPv6 forzada
-# el parámetro cli "--ignoreipv6leak" permite omitir la ruta IPv6 forzada si es
-# necesario (no recomendado)
+# ==============================================================================
+#                  POLÍTICAS Y CONFIGURACIONES DE RED IPv6
+# ==============================================================================
 
-## Forzar IPv6 a través de la VPN incluso si IPv6 no es compatible con el servidor
-## Esto evitará una fuga de IPv6 en el lado del cliente, pero podría causar
-## problemas en el lado del cliente al acceder a direcciones IPv6.
-## Esta opción es inútil si las rutas se configuran manualmente.
-## También es irrelevante cuando IPv6 está (forzado) habilitado.
+# Nota técnica: El uso del parámetro CLI "--noipv6" desactiva por completo el protocolo,
+# previniendo tanto fugas como enrutamientos forzados innecesarios.
+# El uso de "--ignoreipv6leak" mitiga la inyección de rutas (No recomendado en producción).
+
+# 1 = Mitigación activa. Fuerza el tráfico IPv6 a través del túnel VPN para prevenir fugas (leak)
+# en el cliente, incluso si el servidor carece de conectividad IPv6 nativa hacia el exterior.
 pivpnforceipv6route=1
 
-## Habilitar o deshabilitar IPv6.
-## Dejarlo vacío o en "1" desencadenará una comprobación de enlace ascendente IPv6
+# Estado dinámico del protocolo. Un valor vacío o "1" iniciará un test de enlace ascendente (uplink).
 pivpnenableipv6=""
 
-## Habilitar para omitir la comprobación de conectividad IPv6 y también forzar el tráfico IPv6 del cliente
-## a través de wireguard, independientemente de si hay una ruta IPv6 en el servidor.
+# 1 = Modo bypass estricto. Omite las pruebas de conectividad de red locales y fuerza la tunelización
+# total de paquetes IPv6 del cliente hacia la interfaz de WireGuard de forma incondicional.
 pivpnforceipv6=0
 
-######## SCRIPT ########
+# ==============================================================================
+#          CÁLCULO DINÁMICO DE RESOLUCIÓN PARA INTERFACES WHIPTAIL
+# ==============================================================================
 
-# Encontrar las filas y columnas. Por defecto será 80x24 si no se puede detectar.
-screen_size="$(stty size 2> /dev/null || echo 24 80)"
-rows="$(echo "${screen_size}" | awk '{print $1}')"
-columns="$(echo "${screen_size}" | awk '{print $2}')"
+# Captura geométrica de la terminal. Si falla o se ejecuta en entornos no interactivos,
+# se asume una matriz segura estandarizada de 24 filas por 80 columnas.
+screen_size="$(stty size 2> /dev/null || echo "24 80")"
 
-# Dividir por dos para que los diálogos ocupen la mitad de la pantalla.
-r=$((rows / 2))
-c=$((columns / 2))
-# A menos que la pantalla sea pequeña
-r=$((r < 20 ? 20 : r))
-c=$((c < 70 ? 70 : c))
+# OPTIMIZACIÓN DE RENDIMIENTO: Reemplazo de subprocesos 'awk' por el comando interno 'read' de Bash.
+# Esto reduce el consumo de CPU y elimina dependencias de binarios externos en la inicialización.
+read -r rows columns <<< "${screen_size}"
 
-# Sobrescribir la configuración de localización para que la salida original se mantenga (C).
-#export LC_ALL=C
+# Dimensionamiento adaptativo: Los menús interactivos escalarán al 50% del tamaño total disponible.
+r=$(( rows / 2 ))
+c=$(( columns / 2 ))
+
+# MÁRGENES DE SEGURIDAD INTERFAZ: Forzamos límites mínimos de 20 filas y 70 columnas.
+# Esto garantiza la correcta visualización de los contenedores de texto, saltos de línea
+# y botones de acción de 'Whiptail', evitando truncamientos de interfaz en pantallas pequeñas.
+[[ ${r} -lt 20 ]] && r=20
+[[ ${c} -lt 70 ]] && c=70
+
+# ==============================================================================
+#               TRAZABILIDAD Y MENSAJES DE INICIALIZACIÓN (LOGS)
+# ==============================================================================
+
+echo "::: "
+echo "::: [INFO] Inicializando variables del entorno e identificando recursos del sistema..."
+echo "::: [INFO] Geometría de pantalla configurada para diálogos: ${r} Filas x ${c} Columnas."
+
+# Mantenemos desactivada la sobrescritura forzada de localización del sistema para permitir
+# que los mensajes y diálogos emergentes se rendericen en el idioma nativo configurado (ej: es_ES).
+# export LC_ALL=C
 
 main() {
   # Asegura la eliminación automática de configuraciones temporales al salir,
