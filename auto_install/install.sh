@@ -106,36 +106,55 @@ c=$((c < 70 ? 70 : c))
 #export LC_ALL=C
 
 main() {
-  # Comprobaciones y configuraciones previas a la instalación
+  # Asegura la eliminación automática de configuraciones temporales al salir,
+  # ya sea por finalización exitosa, error crítico o cancelación con Ctrl+C.
+  trap 'rm -f "${tempsetupVarsFile}"' EXIT
+
+  # ==========================================
+  # FASE 1: VALIDACIONES E INICIALIZACIÓN
+  # ==========================================
+
+  # Procesa primero los argumentos de entrada (--unattended, --skip-space-check, etc.)
+  # para que sus variables asociadas estén disponibles en las comprobaciones posteriores.
+  flagsCheck "$@"
   distroCheck
   rootCheck
-  flagsCheck "$@"
   unattendedCheck
   checkExistingInstall "$@"
   checkHostname
 
-  # Verificar que haya suficiente espacio en disco para la instalación
+  # Comprobación de almacenamiento disponible
   if [[ "${skipSpaceCheck}" == 'true' ]]; then
-    echo -n "::: --skip-space-check pasado al script, "
-    echo "¡omitiendo verificación de espacio libre en disco!"
+    echo "::: Opción --skip-space-check activa: Omitiendo la validación de espacio libre en disco."
   else
     verifyFreeDiskSpace
   fi
+
+  # ==========================================
+  # FASE 2: GESTIÓN DE PAQUETES Y DEPENDENCIAS
+  # ==========================================
 
   updatePackageCache
   notifyPackageUpdatesAvailable
   preconfigurePackages
 
+  # Selección e instalación del conjunto de dependencias según la distribución
   if [[ "${PLAT}" == 'Alpine' ]]; then
-    installDependentPackages BASE_DEPS_ALPINE[@]
+    installDependentPackages BASE_DEPS_ALPINE
   else
-    installDependentPackages BASE_DEPS[@]
+    installDependentPackages BASE_DEPS
   fi
 
+  # Mostrar diálogos de bienvenida interactivos
   welcomeDialogs
 
+  # ==========================================
+  # FASE 3: CONFIGURACIÓN DE RED (IPv4 / IPv6)
+  # ==========================================
+
+  # Evaluación y enrutamiento del protocolo IPv6
   if [[ "${pivpnforceipv6}" -eq 1 ]]; then
-    echo "::: Configuración forzada de IPv6, ¡omitiendo comprobación de enlace ascendente IPv6!"
+    echo "::: Forzando IPv6 por parámetro: Omitiendo la comprobación del enlace ascendente."
     pivpnenableipv6=1
   else
     if [[ -z "${pivpnenableipv6}" ]] \
@@ -149,39 +168,62 @@ main() {
     fi
   fi
 
+  # Configuración de interfaces y asignación de direccionamiento IP estático
   chooseInterface
 
   if checkStaticIpSupported; then
     getStaticIPv4Settings
 
-    if [[ -z "${dhcpReserv}" ]] \
-      || [[ "${dhcpReserv}" -ne 1 ]]; then
+    # Aplica IP estática solo si no se ha confirmado una reserva DHCP previa
+    if [[ "${dhcpReserv}" != "1" ]]; then
       setStaticIPv4
     fi
   else
     staticIpNotSupported
   fi
 
+  # Selección del usuario local del sistema que gestionará los perfiles VPN
   chooseUser
   cloneOrUpdateRepos
 
-  # Instalar
+  # ==========================================
+  # FASE 4: INSTALACIÓN Y DESPLIEGUE NÚCLEO
+  # ==========================================
+
+  # Ejecución del instalador principal de la VPN
   if installPiVPN; then
-    echo "::: Instalación Completada..."
+    echo "::: Instalación del núcleo completada con éxito."
   else
+    echo "::: [ERROR CRÍTICO] Falló la instalación del núcleo de PiVPN. Abortando proceso."
     exit 1
   fi
 
+  # Reinicio de los servicios de red y del software VPN para aplicar los cambios
   restartServices
-  # Preguntar si se habilitarán las actualizaciones desatendidas (unattended-upgrades)
+  
+  # ==========================================
+  # FASE 5: POST-INSTALACIÓN Y CONFIGURACIÓN
+  # ==========================================
+
+  # Gestión del servicio de actualizaciones de seguridad desatendidas
   askUnattendedUpgrades
 
-  if [[ "${UNATTUPG}" -eq 1 ]]; then
+  if [[ "${UNATTUPG}" == "1" ]]; then
     confUnattendedUpgrades
   fi
 
-  writeConfigFiles
-  installScripts
+  # Escritura de perfiles, variables finales y despliegue de comandos del sistema
+  if ! writeConfigFiles; then
+    echo "::: [ERROR CRÍTICO] No se pudieron generar los archivos de configuración finales."
+    exit 1
+  fi
+
+  if ! installScripts; then
+    echo "::: [ERROR CRÍTICO] No se pudieron desplegar los scripts de gestión 'pivpn' en el sistema."
+    exit 1
+  fi
+
+  # Muestra el resumen final de la instalación y opciones de reinicio del servidor
   displayFinalMessage
   echo ":::"
 }
