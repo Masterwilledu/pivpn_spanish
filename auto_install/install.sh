@@ -3655,9 +3655,9 @@ askPublicIPOrDNS() {
       --ok-button "Seleccionar" \
       --cancel-button "Cancelar" \
       --radiolist "Selecciona el método de direccionamiento que usarán tus perfiles de cliente para conectarse al servidor VPN desde el exterior:\n\n(Usa las flechas para moverte y la barra espaciadora para marcar tu opción)" \
-      "${r:-16}" "${c:-78}" 2 \
-      "${IPv4pub}" "Usar la dirección IP pública actual (Recomendado si es estática/fija)" ON \
-      "DNS_Entry" "Usar un nombre de dominio completo o servicio DDNS (No-IP, DuckDNS, etc.)" OFF \
+      "${r}" "${c}" 2 \
+      "${IPv4pub}" "Usar IP pública actual (Recomendado si es fija)" ON \
+      "DNS_Entry" "Usar nombre de dominio o DDNS (No-IP, DuckDNS, etc.)" OFF \
       3>&1 1>&2 2>&3)"; then
 
       if [[ "${input_meth}" == "${IPv4pub}" ]]; then
@@ -3672,7 +3672,7 @@ askPublicIPOrDNS() {
             --ok-button "Continuar" \
             --cancel-button "Cancelar" \
             --inputbox "Introduce el nombre de dominio público o la dirección de tu servicio DNS dinámico (DDNS) que apunta a tu red residencial o corporativa.\n\nEjemplo: miservidor.duckdns.org o vpn.miempresa.com" \
-            "${r:-15}" "${c:-76}" "" \
+            "${r}" "${c}" "" \
             3>&1 1>&2 2>&3)"; then
             
             if validDomain "${input_dns}"; then
@@ -3683,7 +3683,7 @@ askPublicIPOrDNS() {
                 --yes-button "Sí, es correcto" \
                 --no-button "No, modificar" \
                 --yesno "¿Deseas consolidar este nombre de dominio en los perfiles de conexión?\n\n• DNS / DDNS Público: ${input_dns}\n\nNota: Asegúrate de que el dominio apunte correctamente a tu IP pública WAN antes de conectar los clientes." \
-                "${r:-15}" "${c:-74}"; then
+                "${r}" "${c}"; then
                 
                 pivpnHOST="${input_dns}"
                 dns_correct="true"
@@ -3696,7 +3696,7 @@ askPublicIPOrDNS() {
                 --title "Error: Sintaxis DNS Inválida" \
                 --ok-button "Corregir entrada" \
                 --msgbox "El texto introducido no cumple con el formato estándar de un nombre de dominio (FQDN).\n\nTexto detectado:\n  • Entrada: ${input_dns:-(Cadena vacía)}\n\nPor favor, verifica que no contenga esquemas (como http://), barras ni espacios." \
-                "${r:-15}" "${c:-72}"
+                "${r}" "${c}"
             fi
           else
             echo "::: [AVISO] Cancelación detectada en la entrada de dominio. Abortando instalación..." >&2
