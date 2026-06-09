@@ -3538,13 +3538,11 @@ askCustomDomain() {
   else
     if whiptail \
       --backtitle "Asistente de Configuración - PiVPN" \
-      --title "Dominio de Búsqueda Personalizado" \
-      --yes-button "Sí, configurar" \
-      --no-button "Omitir" \
-      --defaultno \
-      --yesno "¿Deseas configurar un sufijo de dominio de búsqueda personalizado para tus clientes?\n\n• ¿Para qué sirve?: Permite resolver nombres de equipos locales de forma directa (por ejemplo, acceder a 'servidor' en lugar de 'servidor.midominio.com').\n\n[AVISO] Se recomienda omitir esta opción a menos que dispongas de una infraestructura de dominio local activa o lo requieras en un entorno corporativo." \
-      "${r:-18}" "${c:-78}"; then
-      
+  --title "Dominio de Búsqueda Personalizado" \
+  --yes-button "Sí, configurar" \
+  --no-button "Omitir" \
+  --defaultno \
+  --yesno "¿Deseas configurar un sufijo de dominio de búsqueda personalizado para los clientes?\n\n• ¿Para qué sirve?: Permite resolver nombres de tu red local usando solo el nombre corto del equipo (por ejemplo, escribir 'nas' en lugar de 'nas.mi-red.local').\n\n• Nota: Si no utilizas un esquema de nombres cortos dentro de tu red local, puedes omitirla con total seguridad." "${r}" "${c}"; then
       until [[ "${domain_correct}" == "true" ]]; do
         if input_domain="$(whiptail \
           --backtitle "Asistente de Configuración - PiVPN" \
@@ -3552,7 +3550,7 @@ askCustomDomain() {
           --ok-button "Continuar" \
           --cancel-button "Cancelar" \
           --inputbox "Introduce el sufijo de dominio personalizado que deseas asociar a la red VPN:\n\nEjemplo estándar: miempresa.local o mired.com" \
-          "${r:-14}" "${c:-76}" \
+          "${r}" "${c}" \
           3>&1 1>&2 2>&3)"; then
 
           if validDomain "${input_domain}"; then
@@ -3563,7 +3561,7 @@ askCustomDomain() {
               --yes-button "Sí, aplicar" \
               --no-button "No, modificar" \
               --yesno "¿Es correcta la nomenclatura del dominio introducido?\n\n• Dominio de búsqueda: ${input_domain}" \
-              "${r:-13}" "${c:-72}"; then
+              "${r}" "${c:}"; then
               
               pivpnSEARCHDOMAIN="${input_domain}"
               domain_correct="true"
@@ -3576,7 +3574,7 @@ askCustomDomain() {
               --title "Error: Estructura de Dominio Inválida" \
               --ok-button "Corregir sintaxis" \
               --msgbox "El texto introducido no cumple con las especificaciones del estándar RFC de nomenclatura de dominios.\n\nTexto procesado:\n  • Dominio: ${input_domain:-(Cadena vacía)}\n\nPor favor, verifica que no contenga caracteres especiales prohibidos ni espacios." \
-              "${r:-15}" "${c:-72}"
+              "${r}" "${c}"
           fi
         else
           echo "::: [AVISO] Cancelación detectada en la entrada del dominio. Abortando instalación..." >&2
