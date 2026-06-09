@@ -2713,7 +2713,7 @@ askPublicIPOrDNS() {
 
     if ! IPv4pub="$(curl -sSf --connect-timeout 4 https://checkip.amazonaws.com 2>/dev/null)" \
       || ! validIP "${IPv4pub}"; then
-      err "No se pudo determinar tu IP pública. Verifica tu conexión a internet o DNS."
+      err "No se pudo determinar tu IP pública. Verifica tu conexión a Internet o DNS."
       exit 1
     fi
   fi
@@ -2744,9 +2744,7 @@ askPublicIPOrDNS() {
 
   if METH="$(whiptail \
     --backtitle "Configurador PiVPN" \
-    --title "Método de Conexión" \
-    --ok-button "Seleccionar" \
-    --cancel-button "Salir" \
+    --title "Método de Conexión" --ok-button "Seleccionar" --cancel-button "Salir" \
     --radiolist "¿Qué método usarán los clientes para conectarse a tu servidor VPN? \
 (Usa la barra espaciadora para marcar tu opción)." "${r}" "${c}" 2 \
     "${IPv4pub}" "Usar esta dirección IP pública detectada" "ON" \
@@ -2764,9 +2762,7 @@ askPublicIPOrDNS() {
         until [[ "${publicDNSValid}" == 'true' ]]; do
           if PUBLICDNS="$(whiptail \
             --backtitle "Configurador PiVPN" \
-            --title "Configuración de Dominio" \
-            --ok-button "Continuar" \
-            --cancel-button "Cancelar" \
+            --title "Configuración de Dominio" --ok-button "Continuar" --cancel-button "Cancelar" \
             --inputbox "Introduce el nombre de dominio público o DDNS para este servidor.
 
 Ejemplo: midominio.com" "${r}" "${c}" \
@@ -2778,8 +2774,7 @@ Ejemplo: midominio.com" "${r}" "${c}" \
             else
               whiptail \
                 --backtitle "Configurador PiVPN" \
-                --title "Error: Dominio Inválido" \
-                --ok-button "Reintentar" \
+                --title "Error: Dominio Inválido" --ok-button "Reintentar" \
                 --msgbox "El nombre DNS introducido no tiene un formato válido. \
 Por favor, comprueba la sintaxis e inténtalo de nuevo.
 
@@ -2796,9 +2791,7 @@ Texto detectado:
         # Pantalla de confirmación final
         if whiptail \
           --backtitle "Configurador PiVPN" \
-          --title "Confirmar Nombre DNS" \
-          --yes-button "Confirmar" \
-          --no-button "Modificar" \
+          --title "Confirmar Nombre DNS" --yes-button "Confirmar" --no-button "Modificar" \
           --yesno "¿Es correcto el dominio para tus clientes?
 
   • DNS Público: ${PUBLICDNS}" "${r}" "${c}"; then
