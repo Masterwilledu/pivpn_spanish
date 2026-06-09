@@ -2813,11 +2813,16 @@ Texto detectado:
 }
 
 askEncryption() {
+  # Inicializamos por defecto para evitar variables vacías en el volcado final
+  USE_PREDEFINED_DH_PARAM=0
+
+  # ==========================================
+  # 1. MODO DESATENDIDO (UNATTENDED)
+  # ==========================================
   if [[ "${runUnattended}" == 'true' ]]; then
-    if [[ -z "${TWO_POINT_FIVE}" ]] \
-      || [[ "${TWO_POINT_FIVE}" -eq 1 ]]; then
+    if [[ -z "${TWO_POINT_FIVE}" ]] || [[ "${TWO_POINT_FIVE}" -eq 1 ]]; then
       TWO_POINT_FIVE=1
-      echo "::: Usando funciones de OpenVPN 2.5"
+      echo "::: Usando funciones modernas de OpenVPN 2.5 (ECDSA)"
 
       if [[ -z "${pivpnENCRYPT}" ]]; then
         pivpnENCRYPT=256
@@ -2828,12 +2833,12 @@ askEncryption() {
         || [[ "${pivpnENCRYPT}" -eq 521 ]]; then
         echo "::: Usando un certificado de ${pivpnENCRYPT} bits"
       else
-        err "::: ${pivpnENCRYPT} no es un tamaño de certificado válido, usa 256, 384 o 521"
+        err "::: ${pivpnENCRYPT} no es un tamaño de certificado ECDSA válido. Usa 256, 384 o 521."
         exit 1
       fi
     else
       TWO_POINT_FIVE=0
-      echo "::: Usando configuración tradicional de OpenVPN"
+      echo "::: Usando configuración tradicional de OpenVPN (RSA)"
 
       if [[ -z "${pivpnENCRYPT}" ]]; then
         pivpnENCRYPT=2048
@@ -2844,7 +2849,7 @@ askEncryption() {
         || [[ "${pivpnENCRYPT}" -eq 4096 ]]; then
         echo "::: Usando un certificado de ${pivpnENCRYPT} bits"
       else
-        err "::: ${pivpnENCRYPT} no es un tamaño de certificado válido, usa 2048, 3072 o 4096"
+        err "::: ${pivpnENCRYPT} no es un tamaño de certificado RSA válido. Usa 2048, 3072 o 4096."
         exit 1
       fi
 
@@ -2867,10 +2872,14 @@ askEncryption() {
     return
   fi
 
+  # ==========================================
+  # 2. MODO INTERACTIVO POR DEFECTO (SIN PERSONALIZAR)
+  # ==========================================
   if [[ "${CUSTOMIZE}" -eq 0 ]]; then
     if [[ "${VPN}" == "openvpn" ]]; then
       TWO_POINT_FIVE=1
       pivpnENCRYPT=256
+      USE_PREDEFINED_DH_PARAM=0 # Aseguramos valor por defecto limpio
 
       {
         echo "TWO_POINT_FIVE=${TWO_POINT_FIVE}"
@@ -2881,73 +2890,91 @@ askEncryption() {
     fi
   fi
 
-  if whiptail \
-    --backtitle "Configuración Criptográfica de OpenVPN" \
+  # ==========================================
+  # 3. MODO INTERACTIVO PERSONALIZADO (CUSTOM)
+  # ==========================================
+  
+  # Pantalla 1: Selección del tipo de cifrado (ECDSA vs RSA)
+  whiptail \
+    --backtitle "Configurador PiVPN" \
     --title "Motor de Cifrado (Curvas Elípticas vs RSA)" --yes-button "Moderno (ECDSA)" --no-button "Tradicional (RSA)" \
-    --yesno "OpenVPN 2.5 permite utilizar criptografía de Curvas Elípticas (ECDSA). 
+    --yesno "OpenVPN 2.5 permite utilizar criptografía de Curvas Elípticas (ECDSA).
 
 • Nivel Moderno: Ofrece mayor velocidad, seguridad superior y certificados más ligeros. Además, cifra el canal de control (tls-crypt-v2) para maximizar la privacidad.
-• Nivel Tradicional: Utiliza RSA. Es ligeramente más lento, pero garantiza compatibilidad total con clientes OpenVPN antiguos.
+• Nivel Tradicional: Utiliza RSA. Garantiza compatibilidad total con clientes OpenVPN antiguos a costa de un rendimiento ligeramente menor.
 
-Si todos tus dispositivos cliente son recientes, te recomendamos el perfil Moderno." \
-    "${r}" "${c}"; then
-    TWO_POINT_FIVE=1
-    pivpnENCRYPT="$(whiptail \
-      --backtitle "Configurar OpenVPN" \
-      --title "Tamaño del certificado ECDSA" \
-      --radiolist "Elige el tamaño deseado de tu certificado \
-(presiona tecla espacio para seleccionar):
-Este es un certificado que se generará en tu sistema. \
-Cuanto más grande sea el certificado, más tiempo tomará. \
-Para la mayoría de las aplicaciones, se recomienda usar 256 bits. \
-Puedes aumentar el número de bits si te importa, sin embargo, considera \
-que 256 bits ya son tan seguros como RSA de 3072 bits." "${r}" "${c}" 3 \
-      "256" "Usar un certificado de 256 bits (nivel recomendado)" ON \
-      "384" "Usar un certificado de 384 bits" OFF \
-      "521" "Usar un certificado de 521 bits (nivel paranoico)" OFF \
-      3>&1 1>&2 2>&3)"
-  else
-    TWO_POINT_FIVE=0
-    pivpnENCRYPT="$(whiptail \
-      --backtitle "Configurar OpenVPN" \
-      --title "Tamaño del certificado RSA" \
-      --radiolist "Elige el tamaño deseado de tu certificado \
-(presiona tecla espacio para seleccionar):
-Este es un certificado que se generará en tu sistema. \
-Cuanto más grande sea el certificado, más tiempo tomará. \
-Para la mayoría de las aplicaciones, se recomienda usar 2048 bits. \
-Si estás paranoico acerca de ... las cosas... \
-entonces toma una taza de café y elige 4096 bits." "${r}" "${c}" 3 \
-      "2048" "Usar un certificado de 2048 bits (nivel recomendado)" ON \
-      "3072" "Usar un certificado de 3072 bits " OFF \
-      "4096" "Usar un certificado de 4096 bits (nivel paranoico)" OFF \
-      3>&1 1>&2 2>&3)"
-  fi
+Si tus dispositivos cliente son recientes, te recomendamos el perfil Moderno." "${r}" "${c}"
+  
+  crypto_choice="$?"
 
-  exitstatus="$?"
-
-  if [[ "${exitstatus}" != 0 ]]; then
-    err "::: Cancelación seleccionada. Saliendo..."
+  # Manejo estricto de cancelación global o Esc en la primera pantalla
+  if [[ "${crypto_choice}" -eq 255 ]]; then
+    err "::: Instalación cancelada por el usuario. Saliendo..."
     exit 1
   fi
 
-  if [[ "${pivpnENCRYPT}" -ge 2048 ]] \
-    && whiptail \
-      --backtitle "Configurar OpenVPN" \
-      --title "Generar Parámetros Diffie-Hellman" --yes-button "Sí" --no-button "No" \
-      --yesno "Generar parámetros DH puede tomar muchas horas en una Raspberry Pi. \
-Puedes usar en su lugar parámetros DH predefinidos recomendados por la \
-Fuerza de Trabajo de Ingeniería de Internet (IETF).
-Puedes encontrar más información sobre ellos aquí: \
-https://wiki.mozilla.org/Security/Archive/Server_Side_TLS_4.0#\
-Pre-defined_DHE_groups
-Si deseas parámetros únicos, elige 'No' y se generarán nuevos parámetros \
-Diffie-Hellman en tu dispositivo." "${r}" "${c}"; then
-    USE_PREDEFINED_DH_PARAM=1
+  if [[ "${crypto_choice}" -eq 0 ]]; then
+    # --- PERFIL MODERNO (ECDSA) ---
+    TWO_POINT_FIVE=1
+    USE_PREDEFINED_DH_PARAM=0 # ECDSA no requiere Diffie-Hellman
+    
+    pivpnENCRYPT="$(whiptail \
+      --backtitle "Configurador PiVPN" \
+      --title "Tamaño del Certificado ECDSA" \
+      --ok-button "Seleccionar" \
+      --cancel-button "Cancelar" \
+      --radiolist "Elige la longitud de clave para tu certificado ECDSA \
+(Usa la barra espaciadora para marcar tu opción):
+
+Nota: Una clave de 256 bits equivale en seguridad a una clave RSA de 3072 bits, \
+siendo drásticamente más rápida." "${r}" "${c}" 3 \
+      "256" "Certificado de 256 bits (Recomendado por rendimiento)" ON \
+      "384" "Certificado de 384 bits (Seguridad avanzada)" OFF \
+      "521" "Certificado de 521 bits (Máxima seguridad militar)" OFF \
+      3>&1 1>&2 2>&3)"
   else
-    USE_PREDEFINED_DH_PARAM=0
+    # --- PERFIL TRADICIONAL (RSA) ---
+    TWO_POINT_FIVE=0
+    
+    pivpnENCRYPT="$(whiptail \
+      --backtitle "Configurador PiVPN" \
+      --title "Tamaño del Certificado RSA" --ok-button "Seleccionar" --cancel-button "Cancelar" \
+      --radiolist "Elige la longitud de clave para tu certificado RSA \
+(Usa la barra espaciadora para marcar tu opción):
+
+A mayor tamaño de clave, mayor seguridad, pero aumentará el tiempo \
+de procesamiento durante la instalación." "${r}" "${c}" 3 \
+      "2048" "Certificado de 2048 bits (Estándar recomendado)" ON \
+      "3072" "Certificado de 3072 bits (Seguridad reforzada)" OFF \
+      "4096" "Certificado de 4096 bits (Alta seguridad / Procesamiento lento)" OFF \
+      3>&1 1>&2 2>&3)"
   fi
 
+  # Validamos si el usuario canceló en cualquiera de las sublistas de radio
+  if [[ $? -ne 0 ]] || [[ -z "${pivpnENCRYPT}" ]]; then
+    err "::: Operación cancelada. Saliendo..."
+    exit 1
+  fi
+
+  # --- CONFIGURACIÓN DIFFIE-HELLMAN (Solo aplica para RSA) ---
+  if [[ "${pivpnENCRYPT}" -ge 2048 ]]; then
+    if whiptail \
+      --backtitle "Configurador PiVPN" \
+      --title "Parámetros Diffie-Hellman" \
+      --yes-button "Sí, predefinidos" \
+      --no-button "No, generar nuevos" \
+      --yesno "La generación local de parámetros DH puede demorar varias horas en entornos como Raspberry Pi.
+
+¿Deseas utilizar los parámetros DH predefinidos y validados por la IETF (Recomendado)?
+
+Si prefieres generar parámetros Diffie-Hellman únicos en este hardware, selecciona 'No'." "${r}" "${c}"; then
+      USE_PREDEFINED_DH_PARAM=1
+    else
+      USE_PREDEFINED_DH_PARAM=0
+    fi
+  fi
+
+  # Volcado limpio de variables de entorno al archivo temporal
   {
     echo "TWO_POINT_FIVE=${TWO_POINT_FIVE}"
     echo "pivpnENCRYPT=${pivpnENCRYPT}"
