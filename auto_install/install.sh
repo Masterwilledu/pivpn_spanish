@@ -5294,7 +5294,7 @@ displayFinalMessage() {
   if whiptail \
     --backtitle "Asistente de Configuración - PiVPN" \
     --title "Reinicio del Sistema Recomendado" \
-    --yes-button "Sí, reiniciar ahora (Recomendado)" \
+    --yes-button "Sí, reiniciar ahora" \
     --no-button "No, reiniciar más tarde" \
     --defaultno \
     --yesno "Se aconseja realizar un reinicio completo del servidor tras finalizar el aprovisionamiento de red y las actualizaciones.\n\n¿Deseas programar y ejecutar el reinicio inmediato del sistema?" \
