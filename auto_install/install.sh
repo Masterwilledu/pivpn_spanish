@@ -2645,33 +2645,72 @@ setWireguardDefaultVars() {
 }
 
 writeVPNTempVarsFile() {
-  {
-    echo "pivpnDEV=${pivpnDEV}"
-    echo "pivpnNET=${pivpnNET}"
-    echo "subnetClass=${subnetClass}"
-    echo "pivpnenableipv6=${pivpnenableipv6}"
+  # ==============================================================================
+  #       PERSISTENCIA TEMPORAL DE VARIABLES MATRICIALES DE LA VPN
+  # ==============================================================================
+  # Centraliza y vuelca el mapa de direccionamiento, interfaces y directivas IPv6
+  # principales en el archivo de preconfiguración temporal de la suite.
 
-    if [[ "${pivpnenableipv6}" -eq 1 ]]; then
+  echo "::: [INFO] Volcando variables base de configuración al archivo temporal..."
+
+  if ! {
+    echo "pivpnDEV=\"${pivpnDEV}\""
+    echo "pivpnNET=\"${pivpnNET}\""
+    echo "subnetClass=\"${subnetClass}\""
+    echo "pivpnenableipv6=${pivpnenableipv6:-0}"
+
+    if [[ "${pivpnenableipv6:-0}" -eq 1 ]]; then
       echo "pivpnNETv6=\"${pivpnNETv6}\""
-      echo "subnetClassv6=${subnetClassv6}"
+      echo "subnetClassv6=\"${subnetClassv6}\""
     fi
 
     echo "ALLOWED_IPS=\"${ALLOWED_IPS}\""
-  } >> "${tempsetupVarsFile}"
+  } >> "${tempsetupVarsFile}"; then
+    
+    # Notificación visual interactiva si ocurre un fallo físico o de permisos en disco
+    whiptail --backtitle "Asistente de Instalación PiVPN" \
+             --title "Error Crítico de Almacenamiento" \
+             --ok-button "Aceptar" \
+             --msgbox "No se ha podido escribir en el archivo de configuración temporal:\n\n${tempsetupVarsFile}\n\nPor favor, comprueba si el almacenamiento interno está lleno o si existen restricciones de escritura." "${r:-14}" "${c:-70}"
+             
+    echo "::: [ERROR] Fallo catastrófico al intentar anexar variables en '${tempsetupVarsFile}'." >&2
+    exit 1
+  fi
+
+  echo "::: [ÉXITO] Directivas globales de red consolidadas correctamente."
 }
 
 writeWireguardTempVarsFile() {
-  {
-    echo "pivpnPROTO=${pivpnPROTO}"
-    echo "pivpnMTU=${pivpnMTU}"
+  # ==============================================================================
+  #       PERSISTENCIA TEMPORAL DE DIRECTIVAS PROPIAS DE WIREGUARD
+  # ==============================================================================
+  # Anexa la configuración del protocolo de transporte, MTU optimizada y las
+  # variables persistentes de mantenimiento de enlace (KeepAlive).
 
-    # Escribir PERSISTENTKEEPALIVE si se proporciona a través del archivo desatendido
-    # También se puede añadir manualmente a /etc/pivpn/wireguard/setupVars.conf
-    # post instalación para ser utilizado en la generación del perfil del cliente
+  echo "::: [INFO] Volcando parámetros de rendimiento de WireGuard al archivo temporal..."
+
+  if ! {
+    echo "pivpnPROTO=\"${pivpnPROTO}\""
+    echo "pivpnMTU=\"${pivpnMTU}\""
+
+    # Aprovisionamiento dinámico de KeepAlive si se define mediante entorno desatendido.
+    # Ayuda a estabilizar túneles detrás de firewalls restrictivos o NAT simétricos residenciales.
     if [[ -n "${pivpnPERSISTENTKEEPALIVE}" ]]; then
-      echo "pivpnPERSISTENTKEEPALIVE=${pivpnPERSISTENTKEEPALIVE}"
+      echo "pivpnPERSISTENTKEEPALIVE=\"${pivpnPERSISTENTKEEPALIVE}\""
     fi
-  } >> "${tempsetupVarsFile}"
+  } >> "${tempsetupVarsFile}"; then
+    
+    # Notificación visual interactiva específica para el stack de WireGuard
+    whiptail --backtitle "Asistente de Instalación PiVPN" \
+             --title "Error de Configuración (WireGuard)" \
+             --ok-button "Aceptar" \
+             --msgbox "Fallo grave de E/S al anexar las directivas de WireGuard en:\n\n${tempsetupVarsFile}" "${r:-12}" "${c:-70}"
+             
+    echo "::: [ERROR] No se pudieron agregar las configuraciones de rendimiento de WireGuard en '${tempsetupVarsFile}'." >&2
+    exit 1
+  fi
+
+  echo "::: [ÉXITO] Parámetros del motor criptográfico WireGuard guardados con éxito."
 }
 
 askWhichVPN() {
