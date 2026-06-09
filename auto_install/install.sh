@@ -398,62 +398,102 @@ flagsCheck() {
   echo "::: [INFO] Finalizado el análisis de argumentos. Estado del entorno consolidado."
 }
 
-unattendedCheck() {
-  if [[ "${runUnattended}" == 'true' ]]; then
-    echo -n "::: --unattended pasado al script de instalación, "
-    echo "no se mostrarán diálogos de whiptail"
+# ==============================================================================
+#                 COMPROBACIONES DE MODO DE EJECUCIÓN Y ENTORNO
+# ==============================================================================
 
-    if [[ -z "${unattendedConfig}" ]]; then
-      err "::: No se ha pasado ningún archivo de configuración"
-      exit 1
-    else
-      if [[ -r "${unattendedConfig}" ]]; then
-        # shellcheck disable=SC1090
-        . "${unattendedConfig}"
-      else
-        err "::: No se puede abrir ${unattendedConfig}"
-        exit 1
-      fi
-    fi
+unattendedCheck() {
+  # Cláusula de guarda: Si no se solicita instalación desatendida, salir de inmediato
+  [[ "${runUnattended}" != 'true' ]] && return
+
+  echo "::: [INFO] Modo desatendido activo (--unattended). Se omitirán las interfaces gráficas (whiptail)."
+
+  # Validación de presencia del argumento de configuración
+  if [[ -z "${unattendedConfig}" ]]; then
+    err "Operación abortada: No se especificó la ruta del archivo de configuración para el modo desatendido."
+    exit 1
   fi
+
+  # Validación de existencia y permisos de lectura del archivo de configuración
+  if [[ ! -r "${unattendedConfig}" ]]; then
+    err "Error de lectura: El archivo de configuración desatendida '${unattendedConfig}' no existe o no es accesible."
+    exit 1
+  fi
+
+  echo "::: [INFO] Importando directivas de aprovisionamiento desde: ${unattendedConfig}"
+  # shellcheck disable=SC1090
+  . "${unattendedConfig}"
 }
 
 checkExistingInstall() {
-  # ver qué configuración ya existe
+  # Definición explícita de variable local para proteger el espacio de nombres global
+  local setupVars=""
+  
+  echo "::: [INFO] Analizando el sistema en busca de instancias previas de PiVPN..."
+
+  # Identificación de rutas y perfiles de configuración según el protocolo implementado
   if [[ -r "${setupConfigDir}/wireguard/${setupVarsFile}" ]]; then
     setupVars="${setupConfigDir}/wireguard/${setupVarsFile}"
+    echo "::: [INFO] Alerta: Se detectó un entorno preexistente de WireGuard."
   elif [[ -r "${setupConfigDir}/openvpn/${setupVarsFile}" ]]; then
     setupVars="${setupConfigDir}/openvpn/${setupVarsFile}"
+    echo "::: [INFO] Alerta: Se detectó un entorno preexistente de OpenVPN."
   fi
 
-  # Eliminar archivo temporal existente de variables de configuración si es de otro usuario
-  ${SUDO} rm -f "${tempsetupVarsFile}"
+  # Saneamiento del entorno: Eliminación segura de residuos temporales de sesiones previas
+  if [[ -f "${tempsetupVarsFile}" ]]; then
+    echo "::: [INFO] Removiendo archivo de variables temporal obsoleto..."
+    ${SUDO} rm -f "${tempsetupVarsFile}"
+  fi
 
-  if [[ -r "${setupVars}" ]]; then
+  # Evaluación del flujo de toma de decisiones ante sistemas existentes
+  if [[ -n "${setupVars}" ]]; then
     if [[ "${reconfigure}" == 'true' ]]; then
-      echo -n "::: --reconfigure pasado al script de instalación, "
-      echo "reinstalará PiVPN sobrescribiendo la configuración existente"
+      echo "::: [PARAM] Directiva --reconfigure detectada: Se sobrescribirá por completo el despliegue actual."
       UpdateCmd="Reconfigure"
     elif [[ "${runUnattended}" == 'true' ]]; then
-      ### ¿Qué debería hacer el script al pasar --unattended a
-      ### una instalación existente?
+      # RESOLUCIÓN TÉCNICA: En entornos de automatización desatendida (CI/CD / Provisioning),
+      # la política estándar y segura ante una colisión de software es forzar la reconfiguración
+      # implícita para evitar bloqueos del hilo de ejecución interactivo.
+      echo "::: [PARAM] Colisión detectada en modo desatendido: Forzando reconfiguración automatizada."
       UpdateCmd="Reconfigure"
     else
+      # Invoca el cuadro de diálogo gráfico interactivo si el usuario está en terminal activa
       askAboutExistingInstall "${setupVars}"
     fi
   fi
 
-  if [[ -z "${UpdateCmd}" ]] \
-    || [[ "${UpdateCmd}" == "Reconfigure" ]]; then
-    :
-  elif [[ "${UpdateCmd}" == "Update" ]]; then
-    ${SUDO} "${pivpnScriptDir}/update.sh" "$@"
-    exit "$?"
-  elif [[ "${UpdateCmd}" == "Repair" ]]; then
-    # shellcheck disable=SC1090
-    . "${setupVars}"
-    runUnattended=true
-  fi
+  # ==============================================================================
+  #            PROCESAMIENTO Y ENRUTAMIENTO DE LA ESTRATEGIA DE CONTROL
+  # ==============================================================================
+  case "${UpdateCmd}" in
+    Update)
+      echo "::: [INFO] Delegando el ciclo de vida al script oficial de actualización de PiVPN..."
+      ${SUDO} "${pivpnScriptDir}/update.sh" "$@"
+      exit "$?"
+      ;;
+      
+    Repair)
+      echo "::: [INFO] Modo reparación activo. Restaurando variables de entorno históricas..."
+      # shellcheck disable=SC1090
+      . "${setupVars}"
+      runUnattended=true
+      ;;
+      
+    Reconfigure|"")
+      # Flujo normal o de sobreescritura: Informamos trazabilidad y permitimos continuar al main()
+      if [[ -n "${setupVars}" ]]; then
+        echo "::: [INFO] Preparando los módulos para la reescritura total de la VPN."
+      else
+        echo "::: [INFO] No se encontraron trazas de software previo. Procediendo con instalación limpia."
+      fi
+      ;;
+      
+    *)
+      err "Estado de control inconsistente: La directiva de actualización '${UpdateCmd}' no está homologada."
+      exit 1
+      ;;
+  esac
 }
 
 askAboutExistingInstall() {
