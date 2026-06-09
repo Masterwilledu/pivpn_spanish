@@ -2222,20 +2222,47 @@ cloneOrUpdateRepos() {
 }
 
 installPiVPN() {
-  ${SUDO} mkdir -p /etc/pivpn/
+  # ==============================================================================
+  #          ORQUESTADOR PRINCIPAL DEL PROCESO DE INSTALACIÓN DE PIVPN
+  # ==============================================================================
+  # Coordina de forma secuencial la creación de directorios del ecosistema,
+  # la recopilación interactiva de parámetros y el despliegue del motor VPN elegido.
+
+  echo "::: [INFO] Iniciando el despliegue formal del ecosistema PiVPN..."
+
+  # Garantizar la existencia de la ruta de configuración con control de errores directo
+  if ! ${SUDO} mkdir -p /etc/pivpn/; then
+    err "Fallo crítico: No se pudo crear el directorio de configuración persistente en '/etc/pivpn/'."
+    exit 1
+  fi
+
+  # Selección interactiva del motor de virtualización de red
+  echo "::: [INFO] Desplegando asistente de selección de motor VPN..."
   askWhichVPN
   setVPNDefaultVars
 
+  # ------------------------------------------------------------------------------
+  # FASE 1: INSTALACIÓN Y PARAMETRIZACIÓN DEL DEMONIO ESPECÍFICO
+  # ------------------------------------------------------------------------------
   if [[ "${VPN}" == 'openvpn' ]]; then
+    echo "::: [INFO] Inicializando rutina de aprovisionamiento para OpenVPN..."
     setOpenVPNDefaultVars
     askAboutCustomizing
     installOpenVPN
     askCustomProto
   elif [[ "${VPN}" == 'wireguard' ]]; then
+    echo "::: [INFO] Inicializando rutina de aprovisionamiento para WireGuard..."
     setWireguardDefaultVars
     installWireGuard
+  else
+    err "Motor VPN desconocido o no parametrizado: '${VPN}'."
+    exit 1
   fi
 
+  # ------------------------------------------------------------------------------
+  # FASE 2: CONFIGURACIÓN INTEGRAL DE RED, PUERTOS Y RESOLUCIÓN DNS
+  # ------------------------------------------------------------------------------
+  echo "::: [INFO] Configurando parámetros de red global y asignación de puertos..."
   askCustomPort
   askClientDNS
 
@@ -2243,8 +2270,13 @@ installPiVPN() {
     askCustomDomain
   fi
 
+  # Definición de la puerta de enlace pública (IP Estática o Nombre de Dominio DNS)
   askPublicIPOrDNS
 
+  # ------------------------------------------------------------------------------
+  # FASE 3: CRIPTOGRAFÍA Y CONSOLIDACIÓN DE DIRECTIVAS
+  # ------------------------------------------------------------------------------
+  echo "::: [INFO] Consolidando archivos de configuración criptográfica..."
   if [[ "${VPN}" == 'openvpn' ]]; then
     askEncryption
     confOpenVPN
@@ -2253,8 +2285,14 @@ installPiVPN() {
     confWireGuard
   fi
 
+  # Ajustes de enrutamiento del núcleo del sistema (Sysctl, Forwarding, IPTables)
+  echo "::: [INFO] Aplicando directivas de red del sistema anfitrión..."
   confNetwork
 
+  # ------------------------------------------------------------------------------
+  # FASE 4: PERSISTENCIA DE LOGS Y VOLCADO DE VARIABLES VOLÁTILES
+  # ------------------------------------------------------------------------------
+  echo "::: [INFO] Volcando variables de entorno para el gestor de perfiles..."
   if [[ "${VPN}" == 'openvpn' ]]; then
     if [[ "${PLAT}" == 'Alpine' ]]; then
       confLogging
@@ -2264,59 +2302,103 @@ installPiVPN() {
   fi
 
   writeVPNTempVarsFile
+  echo "::: [ÉXITO] Fase de instalación y preconfiguración completada correctamente."
 }
 
 decIPv4ToDot() {
+  # ==============================================================================
+  #          CONVERSIÓN DE ENTERO DECIMAL A NOTACIÓN PUNTO-DECIMAL IPv4
+  # ==============================================================================
+  # Toma un entero de 32 bits y realiza máscaras de bits dinámicas para extraer
+  # los cuatro octetos tradicionales de una dirección IP (A.B.C.D).
+
+  local ip_dec="${1}"
   local a b c d
-  a=$((($1 & 4278190080) >> 24))
-  b=$((($1 & 16711680) >> 16))
-  c=$((($1 & 65280) >> 8))
-  d=$(($1 & 255))
-  printf "%s.%s.%s.%s\n" $a $b $c $d
+
+  a=$(( (ip_dec & 0xFF000000) >> 24 ))
+  b=$(( (ip_dec & 0x00FF0000) >> 16 ))
+  c=$(( (ip_dec & 0x0000FF00) >> 8 ))
+  d=$(( ip_dec & 0x000000FF ))
+
+  printf "%s.%s.%s.%s\n" "${a}" "${b}" "${c}" "${d}"
 }
 
 dotIPv4ToDec() {
-  local original_ifs=$IFS
-  IFS='.'
-  read -r -a array_ip <<< "$1"
-  IFS=$original_ifs
-  printf "%s\n" $((array_ip[0] * 16777216 + array_ip[1] * 65536 + array_ip[2] * 256 + array_ip[3]))
+  # ==============================================================================
+  #          CONVERSIÓN DE NOTACIÓN PUNTO-DECIMAL IPv4 A ENTERO DECIMAL
+  # ==============================================================================
+  # Procesa una cadena de texto IP (A.B.C.D) de forma segura. Se parametriza IFS
+  # en línea para evitar la mutación y contaminación del entorno global de la shell.
+
+  local a b c d
+  IFS='.' read -r a b c d <<< "${1}"
+
+  printf "%s\n" "$(( (a * 16777216) + (b * 65536) + (c * 256) + d ))"
 }
 
 dotIPv4FirstDec() {
+  # ==============================================================================
+  #          CÁLCULO DEL PRIMER VALOR DECIMAL DE UNA SUBRED (NETWORK ID)
+  # ==============================================================================
   local decimal_ip decimal_mask
-  decimal_ip=$(dotIPv4ToDec "$1")
-  decimal_mask=$((2 ** 32 - 1 ^ (2 ** (32 - $2) - 1)))
-  printf "%s\n" "$((decimal_ip & decimal_mask))"
+  
+  decimal_ip=$(dotIPv4ToDec "${1}")
+  decimal_mask=$(( 0xFFFFFFFF << (32 - ${2}) & 0xFFFFFFFF ))
+  
+  printf "%s\n" "$(( decimal_ip & decimal_mask ))"
 }
 
 dotIPv4LastDec() {
+  # ==============================================================================
+  #          CÁLCULO DEL ÚLTIMO VALOR DECIMAL DE UNA SUBRED (BROADCAST)
+  # ==============================================================================
   local decimal_ip decimal_mask_inv
-  decimal_ip=$(dotIPv4ToDec "$1")
-  decimal_mask_inv=$((2 ** (32 - $2) - 1))
-  printf "%s\n" "$((decimal_ip | decimal_mask_inv))"
+  
+  decimal_ip=$(dotIPv4ToDec "${1}")
+  decimal_mask_inv=$(( (1 << (32 - ${2})) - 1 ))
+  
+  printf "%s\n" "$(( decimal_ip | decimal_mask_inv ))"
 }
 
 decIPv4ToHex() {
-  local hex
-  hex="$(printf "%08x\n" "$1")"
+  # ==============================================================================
+  #          CONVERSIÓN DE ENTERO DECIMAL A IDENTIFICADOR HEXADECIMAL
+  # ==============================================================================
+  # Transforma la dirección en una cadena hexadecimal formateada en dos cuartetos.
+  # Corrección crítica: Se declaran todas las variables internas como locales.
+
+  local ip_dec="${1}"
+  local hex quartet_hi quartet_lo leading_zeros_hi leading_zeros_lo
+
+  hex="$(printf "%08x\n" "${ip_dec}")"
   quartet_hi=${hex:0:4}
   quartet_lo=${hex:4:4}
-  # Elimina los ceros a la izquierda de los cuartetos, puramente por razones estéticas
-  # Fuente: https://stackoverflow.com/a/19861690
+
+  # Limpieza estética de ceros a la izquierda en los bloques resultantes
   leading_zeros_hi="${quartet_hi%%[!0]*}"
   leading_zeros_lo="${quartet_lo%%[!0]*}"
+  
   printf "%s:%s\n" "${quartet_hi#"${leading_zeros_hi}"}" "${quartet_lo#"${leading_zeros_lo}"}"
 }
 
 cidrToMask() {
-  # Fuente: https://stackoverflow.com/a/20767392
-  set -- $((5 - (${1} / 8))) \
-    255 255 255 255 \
-    $(((255 << (8 - (${1} % 8))) & 255)) \
-    0 0 0
-  shift "${1}"
-  echo "${1-0}.${2-0}.${3-0}.${4-0}"
+  # ==============================================================================
+  #          CONVERSIÓN DE PREFIJO CIDR A MÁSCARA DE RED TRADICIONAL
+  # ==============================================================================
+  # Optimización avanzada: Reemplaza el antiguo volcado posicional por el cálculo
+  # matemático nativo de bits de la máscara, reutilizando la función decIPv4ToDot.
+
+  local cidr="${1}"
+  local mask_dec
+
+  # Evitar desbordamientos si el prefijo está fuera de los rangos estándar de IPv4
+  if [[ "${cidr}" -lt 0 || "${cidr}" -gt 32 ]]; then
+    echo "255.255.255.0" # Retorno seguro de contingencia estándar (/24)
+    return
+  fi
+
+  mask_dec=$(( (0xFFFFFFFF << (32 - cidr)) & 0xFFFFFFFF ))
+  decIPv4ToDot "${mask_dec}"
 }
 
 setVPNDefaultVars() {
