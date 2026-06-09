@@ -687,53 +687,79 @@ https://github.com/wfhgdev/pivpn_spanish
 }
 
 checkHostname() {
-  # Comprueba la longitud del nombre de host
+  # TRAZABILIDAD: Auditoría inicial del estado del parámetro de red de la máquina
+  echo "::: [INFO] Verificando la conformidad del nombre de host (hostname)..."
+  local host_name
   host_name="$(hostname -s)"
 
-  if [[ "${#host_name}" -gt 28 ]]; then
+  # Validación de longitud o caracteres no admitidos en el estándar RFC 1123
+  if [[ "${#host_name}" -gt 28 ]] || [[ ! "${host_name}" =~ ^[a-zA-Z0-9][a-zA-Z0-9-]*$ ]]; then
     if [[ "${runUnattended}" == 'true' ]]; then
-      err "::: Tu nombre de host es demasiado largo."
-      err "::: Usa 'hostnamectl set-hostname TUNOMBREDEHOST' para establecer un nuevo nombre de host"
-      err "::: Debe tener menos de 28 caracteres de longitud y no usar caracteres especiales"
+      err "El nombre de host actual ('${host_name}') no cumple los requisitos de red o excede los 28 caracteres."
+      err "Por favor, soluciónalo ejecutando manualmente: sudo hostnamectl set-hostname NOMBRE"
       exit 1
     fi
 
-    until [[ "${#host_name}" -le 28 ]] \
-      && [[ "${host_name}" =~ ^[a-zA-Z0-9][a-zA-Z0-9-]{1,28}$ ]]; do
-      host_name="$(whiptail \
-        --title "Ajuste del Nombre de Host" --ok-button "Guardar" --cancel-button "Cancelar" \
-        --inputbox "El nombre actual de este equipo excede el límite permitido para configurar la VPN. Por favor, introduce uno nuevo:
+    local proposed_host="${host_name}"
+    local exit_status
+
+    # BUCLE DE VALIDACIÓN INTERACTIVA: Garantiza un formato limpio antes de aplicarlo al sistema
+    while [[ "${#proposed_host}" -gt 28 ]] || [[ ! "${proposed_host}" =~ ^[a-zA-Z0-9][a-zA-Z0-9-]{0,27}$ ]]; do
+      proposed_host="$(whiptail \
+        --backtitle "Asistente de Configuración PiVPN" \
+        --title "Ajuste del Nombre de Host" --ok-button "Guardar" cancel-button "Cancelar" \
+        --inputbox "El nombre actual de este equipo (${host_name}) excede el límite permitido o contiene caracteres no válidos para configurar la VPN. Por favor, introduce uno nuevo:
 
 Requisitos:
 • Máximo 28 caracteres de longitud.
 • Solo letras, números y guiones (sin espacios ni caracteres especiales)." "${r}" "${c}" \
         3>&1 1>&2 2>&3)"
-      ${SUDO} hostnamectl set-hostname "${host_name}"
+      
+      exit_status=$?
 
-      if [[ "${#host_name}" -le 28 ]] \
-        && [[ "${host_name}" =~ ^[a-zA-Z0-9][a-zA-Z0-9-]{1,28}$ ]]; then
-        echo "::: Nombre de host válido y longitud correcta, procediendo..."
+      # SEGURIDAD: Si el usuario cancela el diálogo, salimos limpiamente en lugar de romper el hostname
+      if [[ ${exit_status} -ne 0 ]]; then
+        echo ":::"
+        err "Instalación abortada por el usuario durante la reconfiguración del nombre de host."
+        exit 1
       fi
+
+      # Limpieza básica: Eliminar espacios en blanco accidentales que introduzca el usuario
+      proposed_host="${proposed_host// /}"
     done
+
+    # APLICACIÓN DE CAMBIOS: Persistencia del nuevo parámetro en el sistema operativo
+    echo "::: [INFO] Aplicando el nuevo nombre de host validado: '${proposed_host}'..."
+    if ${SUDO} hostnamectl set-hostname "${proposed_host}"; then
+      echo "::: [INFO] Nombre de host actualizado con éxito a '${proposed_host}'."
+    else
+      err "Error crítico al intentar actualizar el nombre de host mediante 'hostnamectl'."
+      exit 1
+    fi
   else
-    echo "::: Longitud del nombre de host correcta"
+    echo "::: [INFO] Nombre de host verificado correctamente ('${host_name}')."
   fi
 }
 
 spinner() {
+  # ÁMBITO SEGURO: Aislamiento estricto de variables del indicador de carga
   local pid="${1}"
   local delay=0.50
   local spinstr='/-\|'
+  local temp
 
-  while ps a | awk '{print $1}' | grep -q "${pid}"; do
-    local temp="${spinstr#?}"
+  # OPTIMIZACIÓN: Uso de 'kill -0' en sustitución de la tubería pesada 'ps | awk | grep'.
+  # Valida de forma nativa la existencia del PID sin bifurcar procesos (forks) en alta frecuencia.
+  while kill -0 "${pid}" 2>/dev/null; do
+    temp="${spinstr#?}"
     printf " [%c]  " "${spinstr}"
-    local spinstr="${temp}${spinstr%"$temp"}"
+    spinstr="${temp}${spinstr%"${temp}"}"
     sleep "${delay}"
-    printf "\\b\\b\\b\\b\\b\\b"
+    printf "\b\b\b\b\b\b"
   done
 
-  printf "    \\b\\b\\b\\b"
+  # LIMPIEZA: Remoción estética de los caracteres residuales del indicador en la consola
+  printf "    \b\b\b\b"
 }
 
 verifyFreeDiskSpace() {
