@@ -535,29 +535,39 @@ Por favor, selecciona la acción que deseas realizar para continuar:" "${r}" "${
 }
 
 distroCheck() {
-  # Comprobar distribución compatible
-  # Compatibilidad, funciones para comprobar el Sistema Operativo compatible
-  # distroCheck, maybeOSSupport, noOSSupport
-  # si el comando lsb_release está en su sistema
+  # TRAZABILIDAD: Registro de entrada para auditoría y diagnóstico de compatibilidad del sistema
+  echo "::: [INFO] Iniciando análisis de compatibilidad de la distribución de Linux..."
+
+  # ==============================================================================
+  # DETERMINACIÓN DE PLATAFORMA Y NOMBRE CLAVE (CODENAME)
+  # ==============================================================================
   if command -v lsb_release > /dev/null; then
+    echo "::: [INFO] Componente 'lsb_release' detectado. Extrayendo metadatos del entorno..."
     PLAT="$(lsb_release -si)"
     OSCN="$(lsb_release -sc)"
     
-    # CAMBIO: Normalizar el nombre si lsb_release devuelve "RaspberryPiOS" para mantener consistencia interna
+    # NORMALIZACIÓN: Uniformar el identificador de Raspberry Pi OS para mantener consistencia con el script
     if [[ "${PLAT}" == "RaspberryPiOS" ]]; then
       PLAT="Raspberry"
     fi
-  else # de lo contrario obtener información de os-release
+  else
+    echo "::: [INFO] 'lsb_release' no disponible. Consultando archivo de sistema '/etc/os-release'..."
+    # shellcheck disable=SC1091
     . /etc/os-release
-    # CAMBIO: Si ID_LIKE contiene debian y es una Raspberry, o si el ID es directamente "raspbian", asignamos PLAT como Raspberry o Raspbian
+    
+    # Clasificación de entornos específicos basados en arquitecturas ARM / Raspberry
     if [[ "${ID}" == "raspbian" || "${ID}" == "raspberrypi" || "${ID_LIKE}" == *"raspbian"* ]]; then
       PLAT="Raspberry"
     else
-      PLAT="$(awk '{print $1}' <<< "${NAME}")"
+      # OPTIMIZACIÓN: Reemplazo de subproceso externo 'awk' por expansión de parámetros interna de Bash.
+      # Elimina la bifurcación de CPU extrayendo de forma segura la primera palabra del campo NAME.
+      PLAT="${NAME%% *}"
     fi
     
     VER="${VERSION_ID}"
-    declare -A VER_MAP=(
+    
+    # ÁMBITO SEGURO: Declaración local del mapa asociativo de versiones para prevenir polución global
+    local -A VER_MAP=(
       ["11"]="bullseye"
       ["12"]="bookworm"
       ["13"]="trixie"
@@ -568,36 +578,47 @@ distroCheck() {
     )
     OSCN="${VER_MAP["${VER}"]}"
 
-    # Soporte para Alpine
+    # SOPORTE INTEGRADO: Si la distribución carece de codename textual (ej. Alpine), se adopta su versión numérica
     if [[ -z "${OSCN}" ]]; then
       OSCN="${VER}"
     fi
   fi
 
-  # CAMBIO: Añadido "Raspberry" al caso de éxito para aceptar las cadenas de texto de las nuevas imágenes de Raspberry Pi OS
+  echo "::: [INFO] Resultados del análisis de entorno: Plataforma='${PLAT}' | Nombre Clave='${OSCN}'."
+
+  # ==============================================================================
+  # VALIDACIÓN Y CONFIGURACIÓN DINÁMICA DE ENTORNO SEGÚN DISTRIBUCIÓN
+  # ==============================================================================
   case "${PLAT}" in
     Debian | Raspbian | Raspberry | Ubuntu)
       case "${OSCN}" in
         bullseye | bookworm | trixie | focal | jammy | noble | resolute)
-          :
+          echo "::: [INFO] Validación exitosa: Entorno homologado y totalmente compatible."
           ;;
         *)
+          echo "::: [ADVERTENCIA] Nombre clave '${OSCN}' no verificado oficialmente. Evaluando soporte secundario..."
           maybeOSSupport
           ;;
       esac
       ;;
+      
     Alpine)
+      echo "::: [INFO] Arquitectura Alpine Linux identificada. Reconfigurando subsistema de paquetes a 'apk'..."
       PKG_MANAGER='apk'
       UPDATE_PKG_CACHE="${PKG_MANAGER} update"
       PKG_INSTALL="${PKG_MANAGER} --no-cache add"
       PKG_COUNT="${PKG_MANAGER} list -u | wc -l || true"
       CHECK_PKG_INSTALLED="${PKG_MANAGER} --no-cache info -e"
       ;;
+      
     *)
+      echo "::: [ERROR CRÍTICO] Distribución '${PLAT}' no compatible o fuera de los parámetros de soporte."
       noOSSupport
       ;;
   esac
 
+  # PERSISTENCIA: Volcado seguro de las variables validadas para su posterior consumo por los submódulos
+  echo "::: [INFO] Almacenando variables de entorno consolidadas en el perfil temporal..."
   {
     echo "PLAT=${PLAT}"
     echo "OSCN=${OSCN}"
