@@ -1,22 +1,74 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# PiVPN: Script de Autocompletado Avanzado para Bash (pivpn-completion)
+# Proporciona expansión léxica predictiva para subcomandos, banderas y clientes.
 
 _pivpn() {
-  local cur opts
-  COMPREPLY=()
-  cur="${COMP_WORDS[COMP_CWORD]}"
-  dashopts="-a -c -d -l -qr -r -h -u -up -bk -off -on"
-  opts="agregar clientes depuracion qr eliminar ayuda desinstalar actualizar"
-  opts="${opts} backup (temp) off (temp) on"
+  # Definición de variables locales para evitar la contaminación del entorno global de la shell
+  local cur prev opts dashopts client_list vpn_dirs
 
-  if [[ "${#COMP_WORDS[@]}" -eq 2 ]]; then
+  # Inicialización obligatoria del array de respuestas de completado
+  COMPREPLY=()
+
+  # Palabra actual que el usuario está escribiendo
+  cur="${COMP_WORDS[COMP_CWORD]}"
+  # Palabra inmediatamente anterior en la línea de comandos
+  prev="${COMP_WORDS[COMP_CWORD-1]}"
+
+  # Banderas e interruptores de consola cortos y largos (Flags con guión)
+  dashopts="-a -c -d -l -qr -r -h -u -up -bk -off -on"
+
+  # Subcomandos semánticos nativos y localizados en español
+  opts="agregar clientes depuracion qr eliminar ayuda desinstalar actualizar backup off on"
+
+  # ============================================================================
+  # EVALUACIÓN DEL PRIMER NIVEL DE ARGUMENTOS (Subcomandos y Banderas)
+  # ============================================================================
+  if [[ ${COMP_CWORD} -eq 1 ]]; then
     if [[ "${cur}" == -* ]]; then
-      COMPREPLY=("$(compgen -W "${dashopts}" -- "${cur}")")
+      # Coincidencia predictiva sobre la lista de flags con guión
+      COMPREPLY=( $(compgen -W "${dashopts}" -- "${cur}") )
     else
-      COMPREPLY=("$(compgen -W "${opts}" -- "${cur}")")
+      # Coincidencia predictiva sobre los subcomandos estructurados
+      COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
     fi
+    return 0
+  fi
+
+  # ============================================================================
+  # EVALUACIÓN DEL SEGUNDO NIVEL DE ARGUMENTOS (Completado Dinámico de Clientes)
+  # ============================================================================
+  # Si el usuario ya especificó un subcomando de acción que requiere un cliente,
+  # el script inspecciona de forma segura los directorios del sistema para listar perfiles.
+  if [[ ${COMP_CWORD} -eq 2 ]]; then
+    case "${prev}" in
+      qr | -qr | eliminar | -r)
+        client_list=""
+
+        # Rutas estándar de persistencia de perfiles criptográficos en WireGuard y OpenVPN
+        if [[ -d "/etc/wireguard/configs" ]]; then
+          # Extrae los nombres base de los archivos de configuración de WireGuard (.conf)
+          client_list="$(find /etc/wireguard/configs -maxdepth 1 -name "*.conf" -exec basename {} .conf \; 2>/dev/null)"
+        elif [[ -d "/etc/openvpn/ccd" ]]; then
+          # Extrae los nombres de clientes definidos en el directorio de configuración central de OpenVPN
+          client_list="$(find /etc/openvpn/ccd -maxdepth 1 ! -name "*.*" -exec basename {} \; 2>/dev/null)"
+        fi
+
+        # Si el directorio raíz requiere elevación y la caché anterior está vacía,
+        # se buscan de manera alternativa perfiles legibles en el directorio de almacenamiento doméstico
+        if [[ -z "${client_list}" && -d "/root/ovpns" ]]; then
+          client_list="$(find /root/ovpns -maxdepth 1 -name "*.ovpn" -exec basename {} .ovpn \; 2>/dev/null)"
+        fi
+
+        # Si se hallaron clientes activos, se genera la lista de coincidencia contextual
+        if [[ -n "${client_list}" ]]; then
+          COMPREPLY=( $(compgen -W "${client_list}" -- "${cur}") )
+        fi
+        ;;
+    esac
   fi
 
   return 0
 }
 
+# Registro formal de la función de control de autocompletado en el sistema operativo
 complete -F _pivpn pivpn
