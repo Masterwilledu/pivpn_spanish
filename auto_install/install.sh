@@ -2822,71 +2822,114 @@ askWhichVPN() {
 }
 
 askAboutCustomizing() {
-  if [[ "${runUnattended}" == 'false' ]]; then
-    # CAMBIO: Se ha reestructurado el texto y la lógica de los botones para que el flujo sea más intuitivo (Sí = Confirmar lo recomendado, No = Personalizar). También se ha mejorado el formato de la lista para una lectura limpia en la terminal ()
-    if whiptail \
-      --backtitle "Configuración del Servidor PiVPN" \
-      --title "Modo de Instalación y Parámetros" --yes-button "Aceptar y Continuar" --no-button "Personalizar" \
-      --yesno "Para la mayoría de los entornos, PiVPN aplica un perfil de configuración optimizado por defecto. Se compone de los siguientes parámetros técnicos:
+  # ==============================================================================
+  #         SELECCIÓN DE CONFIGURACIÓN RÁPIDA O PERSONALIZADA
+  # ==============================================================================
+  # Permite al usuario decidir entre aplicar el perfil de configuración optimizado
+  # por defecto o entrar en el asistente iterativo para ajustar cada parámetro.
 
-• Protocolo de Red: UDP (Más rápido y eficiente)
-• Dominio de Búsqueda DNS: Ninguno (Por defecto)
-• Nivel de Seguridad: Perfil Moderno (Certificado de 256 bits + Cifrado TLS Avanzado)
+  if [[ "${runUnattended}" == 'true' ]]; then
+    echo "::: [INFO] Modo desatendido activo. Omitiendo cuadro de diálogo interactivo."
+    CUSTOMIZE=0
+    return 0
+  fi
 
-¿Deseas aplicar estos valores recomendados directamente o prefieres personalizar los detalles de la instalación?" "${r}" "${c}"; then
-      # El usuario eligió "Aceptar y Continuar" -> NO quiere personalizar de forma manual
-      CUSTOMIZE=0
-    else
-      # El usuario eligió "Personalizar" -> SÍ quiere cambiar los parámetros manuales
-      CUSTOMIZE=1
-    fi
+  echo "::: [INFO] Solicitando confirmación del modo de instalación al usuario..."
+
+  # Despliegue del menú visual interactivo con botones regionalizados en español
+  if whiptail \
+    --backtitle "Configuración del Servidor PiVPN" \
+    --title "Modo de Instalación y Parámetros" \
+    --yes-button "Aceptar y Continuar" \
+    --no-button "Personalizar" \
+    --yesno "Para la mayoría de los entornos, PiVPN aplica un perfil de configuración optimizado por defecto. Se compone de los siguientes parámetros técnicos:\n\n• Protocolo de Red: UDP (Más rápido y eficiente)\n• Dominio de Búsqueda DNS: Ninguno (Por defecto)\n• Nivel de Seguridad: Perfil Moderno (Certificado de 256 bits + Cifrado TLS Avanzado)\n\n¿Deseas aplicar estos valores recomendados directamente o prefieres personalizar los detalles de la instalación?" \
+    "${r:-22}" "${c:-78}"; then
+    
+    echo "::: [INFO] El usuario ha optado por aplicar el perfil optimizado por defecto."
+    CUSTOMIZE=0
+  else
+    echo "::: [INFO] El usuario ha seleccionado la personalización manual de parámetros."
+    CUSTOMIZE=1
   fi
 }
 
 installOpenVPN() {
-  local PIVPN_DEPS gpg_path gpg_path="${pivpnFilesDir}/files/etc/apt/repo-public.gpg"
-  echo "::: Instalando OpenVPN desde el paquete de Debian... "
+  # ==============================================================================
+  #         INSTALACIÓN Y CONFIGURACIÓN DEL MOTOR DE RED OPENVPN
+  # ==============================================================================
+  # Resuelve las dependencias base e importa de forma segura los llaveros criptográficos
+  # oficiales para desplegar la última compilación estable de OpenVPN.
 
-  if [[ "${NEED_OPENVPN_REPO}" -eq 1 ]]; then
-    # gnupg es usado por apt-key para importar la clave GPG de openvpn en el
-    # llavero de APT
-    PIVPN_DEPS=(gnupg)
-    installDependentPackages PIVPN_DEPS[@]
+  local -a PIVPN_DEPS=()
+  local gpg_path="${pivpnFilesDir}/files/etc/apt/repo-public.gpg"
+  local keyring_dir="/usr/share/keyrings"
+  local keyring_path
 
-    # Clave GPG pública del repositorio de OpenVPN
-    # (huella digital 0x30EBF4E73CCE63EEE124DD278E6DA8B4E158C569)
-    echo "::: Añadiendo clave del repositorio..."
-    
-    # CAMBIO: Definición de una ruta de llavero moderna y segura. Se prioriza /usr/share/keyrings en sistemas modernos, cayendo en /etc/apt/trusted.gpg.d si no existe para máxima compatibilidad con distribuciones antiguas ()
-    local keyring_dir="/usr/share/keyrings"
-    if [[ ! -d "${keyring_dir}" ]]; then
-      keyring_dir="/etc/apt/trusted.gpg.d"
-    fi
-    local keyring_path="${keyring_dir}/openvpn-repo-keyring.gpg"
+  echo "::: [INFO] Iniciando los procesos de preparación para OpenVPN..."
 
-    # CAMBIO: Reemplazo del comando obsoleto apt-key add. Ahora se analiza si la clave está en formato ASCII armadura o binario y se escribe en el archivo de destino de forma segura usando gpg --dearmor si es necesario ()
-    if gpg --valid-extension "${gpg_path}" &>/dev/null || file "${gpg_path}" | grep -q "gpg public public keyring" || ! grep -q "BEGIN PGP PUBLIC KEY BLOCK" "${gpg_path}"; then
-      ${SUDO} cp "${gpg_path}" "${keyring_path}"
-    else
-      ${SUDO} gpg --dearmor < "${gpg_path}" | ${SUDO} tee "${keyring_path}" > /dev/null
-    fi
+  if [[ "${NEED_OPENVPN_REPO:-0}" -eq 1 ]]; then
+    echo "::: [INFO] Configurando repositorio oficial externo de OpenVPN..."
 
-    # CAMBIO: Verificación de control para asegurar que el archivo del llavero se haya creado correctamente antes de proceder con la instalación ()
-    if [[ ! -f "${keyring_path}" ]]; then
-      err "::: No se puede importar la clave GPG de OpenVPN"
+    # Validación preventiva crítica: Comprobar existencia del recurso origen
+    if [[ ! -f "${gpg_path}" ]]; then
+      err "Error crítico: No se ha localizado el archivo de clave de origen en: ${gpg_path}"
       exit 1
     fi
 
-    echo "::: Añadiendo repositorio de OpenVPN... "
-    # CAMBIO: Modificación de la línea del repositorio para incluir el parámetro [signed-by=...] vinculando directamente la clave GPG específica al repositorio de OpenVPN, eliminando la vulnerabilidad global de apt-key ()
-    echo "deb [signed-by=${keyring_path}] https://build.openvpn.net/debian/openvpn/stable ${OSCN} main" \
-      | ${SUDO} tee /etc/apt/sources.list.d/pivpn-openvpn-repo.list > /dev/null
-    echo "::: Actualizando la caché de paquetes..."
+    # Instalar gnupg, herramienta necesaria para el procesamiento seguro de llaveros de APT
+    PIVPN_DEPS=(gnupg)
+    installDependentPackages PIVPN_DEPS[@]
+
+    # Determinar el directorio de llaveros óptimo según los estándares modernos de la distribución
+    if [[ ! -d "${keyring_dir}" ]]; then
+      keyring_dir="/etc/apt/trusted.gpg.d"
+    fi
+    keyring_path="${keyring_dir}/openvpn-repo-keyring.gpg"
+
+    echo "::: [INFO] Importando clave pública GPG al llavero del sistema: ${keyring_path}"
+    
+    # Procesamiento y desarmado seguro (dearmor) según la estructura nativa de la clave
+    if grep -q "BEGIN PGP PUBLIC KEY BLOCK" "${gpg_path}"; then
+      if ! ${SUDO} gpg --dearmor < "${gpg_path}" | ${SUDO} tee "${keyring_path}" > /dev/null; then
+        err "Error de procesamiento: Falló la conversión del bloque de clave ASCII mediante gpg --dearmor."
+        exit 1
+      fi
+    else
+      if ! ${SUDO} cp "${gpg_path}" "${keyring_path}"; then
+        err "Error de E/S: No se pudo copiar la clave binaria al llavero de destino."
+        exit 1
+      fi
+    fi
+
+    # Validación de integridad física y dimensional del llavero final resultante
+    if [[ ! -s "${keyring_path}" ]]; then
+      err "Error de validación: El archivo de llavero final se generó vacío o se encuentra corrupto."
+      exit 1
+    fi
+
+    echo "::: [ÉXITO] Clave criptográfica agregada y validada correctamente."
+
+    # Inserción del repositorio seguro mapeado exclusivamente a su clave firmante (Signed-By)
+    echo "::: [INFO] Registrando índice del repositorio firmado en sources.list.d..."
+    if ! echo "deb [signed-by=${keyring_path}] https://build.openvpn.net/debian/openvpn/stable ${OSCN} main" \
+      | ${SUDO} tee /etc/apt/sources.list.d/pivpn-openvpn-repo.list > /dev/null; then
+      err "Error de escritura: No se pudo crear el archivo del repositorio de OpenVPN."
+      exit 1
+    fi
+
+    echo "::: [INFO] Actualizando la caché local del gestor de paquetes APT..."
     updatePackageCache
   fi
 
+  # Despliegue definitivo del binario del servidor VPN
+  echo "::: [INFO] Ejecutando la instalación del paquete binario principal de OpenVPN..."
   PIVPN_DEPS=(openvpn)
-  installDependentPackages PIVPN_DEPS[@]
+  if ! installDependentPackages PIVPN_DEPS[@]; then
+    err "Error crítico: Falló la descarga e instalación del paquete 'openvpn'."
+    exit 1
+  fi
+
+  echo "::: [ÉXITO] El entorno de ejecución de OpenVPN ha sido desplegado correctamente."
 }
 
 installWireGuard() {
