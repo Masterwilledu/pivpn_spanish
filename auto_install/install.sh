@@ -2541,12 +2541,14 @@ IP \"${vpnGw}\" y acepte peticiones desde \"${pivpnNET}/${subnetClass}\"." "${r}
         strInvalid="Invalid"
 
         if pivpnDNS="$(whiptail \
-          --backtitle "Especificar Proveedor(es) DNS de subida" \
-          --inputbox "Introduce tu(s) proveedor(es) DNS de subida, \
-separados por coma.
+          --backtitle "Configurador PiVPN" \
+        --title "Servidores DNS Personalizados" --ok-button "Aceptar" cancel-button "Cancelar" \
+        --inputbox "Introduce las direcciones IP de tus servidores DNS de subida, \
+separadas por una coma.
 
-Por ejemplo '1.1.1.1, 9.9.9.9'" "${r}" "${c}" "" \
+Ejemplo: '1.1.1.1, 9.9.9.9'" "${r}" "${c}" "" \
           3>&1 1>&2 2>&3)"; then
+          # Procesamiento de las IPs introducidas para extraer el primer y segundo servidor DNS, eliminando espacios y tabulaciones alrededor de las comas
           pivpnDNS1="$(echo "${pivpnDNS}" \
             | sed 's/[, \t]\+/,/g' \
             | awk -F, '{print$1}')"
@@ -2571,12 +2573,14 @@ Por ejemplo '1.1.1.1, 9.9.9.9'" "${r}" "${c}" "" \
         if [[ "${pivpnDNS1}" == "${strInvalid}" ]] \
           || [[ "${pivpnDNS2}" == "${strInvalid}" ]]; then
           whiptail \
-            --backtitle "IP Inválida" \
-            --title "IP Inválida" --ok-button "Aceptar" \
-            --msgbox "Una o ambas direcciones IP eran inválidas. \
-Por favor, inténtalo de nuevo.
-    Servidor DNS 1: ${pivpnDNS1}
-    Servidor DNS 2: ${pivpnDNS2}" "${r}" "${c}"
+            --backtitle "Configurador PiVPN" \
+            --title "Error: IP Inválida" --ok-button "Reintentar" \
+            --msgbox "Una o ambas direcciones IP introducidas no son válidas. \
+Por favor, comprueba los datos e inténtalo de nuevo.
+
+Datos detectados:
+  • Servidor DNS 1: ${pivpnDNS1:-(Vacío)}
+  • Servidor DNS 2: ${pivpnDNS2:-(Vacío)}" "${r}" "${c}"
 
           if [[ "${pivpnDNS1}" == "${strInvalid}" ]]; then
             pivpnDNS1=""
@@ -2653,12 +2657,12 @@ askCustomDomain() {
   DomainSettingsCorrect=false
 
   if whiptail \
-    --backtitle "Dominio de búsqueda personalizado" \
-    --title "Dominio de búsqueda personalizado" --yes-button "Sí" --no-button "No" \
+    --backtitle "Configurador PiVPN" \
+    --title "Dominio de Búsqueda Personalizado" --yes-button "Sí, añadir" --no-button "Omitir" \
     --defaultno \
-    --yesno "¿Te gustaría añadir un dominio de búsqueda personalizado?
-(Esto es solo para usuarios avanzados que tienen su propio dominio)
-" "${r}" "${c}"; then
+    --yesno "¿Deseas configurar un sufijo de dominio de búsqueda personalizado?
+
+[AVISO] Esta opción se recomienda solo para usuarios avanzados o entornos corporativos que dispongan de una infraestructura de dominio propia." "${r}" "${c}"; then
     until [[ "${DomainSettingsCorrect}" == 'true' ]]; do
       if pivpnSEARCHDOMAIN="$(whiptail \
         --inputbox "Introduce el Dominio Personalizado
