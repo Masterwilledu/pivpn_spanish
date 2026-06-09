@@ -4891,80 +4891,122 @@ restartServices() {
 }
 
 askUnattendedUpgrades() {
+  # ==============================================================================
+  #          GESTIÓN DE ACTUALIZACIONES DE SEGURIDAD DESATENDIDAS
+  # ==============================================================================
+  echo ":::"
+  echo "::: [INFO] Evaluando directivas para el subsistema de actualizaciones automáticas..."
+
+  # ------------------------------------------------------------------------------
+  # MODO 1: INSTALACIÓN DESATENDIDA (AUTOMATIZADA / SETUPVARS)
+  # ------------------------------------------------------------------------------
   if [[ "${runUnattended}" == 'true' ]]; then
     if [[ -z "${UNATTUPG}" ]]; then
       UNATTUPG=1
-      echo "::: Sin preferencia sobre actualizaciones desatendidas, asumiendo que sí"
+      echo "::: [INFO] Modo desatendido: No se especificó preferencia para UNATTUPG. Se habilita por defecto."
     else
       if [[ "${UNATTUPG}" -eq 1 ]]; then
-        echo "::: Habilitando actualizaciones desatendidas"
+        echo "::: [INFO] Modo desatendido: Directiva explícita detectada para activar actualizaciones automáticas."
       else
-        echo "::: Omitiendo actualizaciones desatendidas"
+        echo "::: [INFO] Modo desatendido: Directiva explícita detectada para omitir actualizaciones automáticas."
       fi
     fi
 
-    echo "UNATTUPG=${UNATTUPG}" >> "${tempsetupVarsFile}"
+    # Validación transaccional de escritura en el entorno temporal de instalación
+    if ! echo "UNATTUPG=${UNATTUPG}" >> "${tempsetupVarsFile}"; then
+      err "Fallo crítico de E/S: No se pudo escribir la variable UNATTUPG en '${tempsetupVarsFile}'."
+      exit 1
+    fi
     return
   fi
 
+  # ------------------------------------------------------------------------------
+  # MODO 2: ASISTENTE INTERACTIVO (GRÁFICO - WHIPTAIL)
+  # ------------------------------------------------------------------------------
+  echo "::: [INFO] Desplegando panel explicativo sobre mantenimiento preventivo y seguridad..."
+
+  # Cuadro informativo inicial sobre el servicio unattended-upgrades
   whiptail \
-    --msgbox \
-  --backtitle "Mantenimiento y Seguridad" \
-  --title "Actualizaciones de Seguridad Automáticas" --ok-button "Entendido" \
-  "Para proteger tu servidor frente a vulnerabilidades, el asistente configurará el servicio 'unattended-upgrades'.
+    --backtitle "Asistente de Configuración - PiVPN" \
+    --title "Actualizaciones de Seguridad Automáticas" \
+    --ok-button "Entendido, Continuar" \
+    --msgbox "Para salvaguardar la integridad de tu servidor frente a amenazas y brechas de red, el asistente configurará el servicio nativo 'unattended-upgrades'.\n\nEsta utilidad automatiza por completo la descarga e instalación de parches de seguridad críticos diariamente.\n\nNotas de seguridad importantes:\n• Este proceso se limita estrictamente a mitigar fallos de seguridad del sistema.\n• El servicio nunca forzará un reinicio del servidor de manera autónoma.\n• Se recomienda planificar reinicios periódicos de la máquina para asegurar que los parches del kernel surtan efecto." \
+    "${r}" "${c}"
 
-Esta herramienta permite que el sistema instale automáticamente parches de seguridad críticos de forma diaria. 
+  echo "::: [INFO] Solicitando confirmación para el aprovisionamiento de parches desatendidos..."
 
-Nota importante: 
-• Este proceso solo aplica actualizaciones de seguridad y nunca forzará un reinicio del sistema.
-• Te recomendamos reiniciar el servidor periódicamente para asegurar que todos los parches aplicados se carguen correctamente." "${r}" "${c}"
-
+  # Diálogo interactivo de toma de decisión binaria
   if whiptail \
-    --backtitle "Mantenimiento y Seguridad" \
-  --title "Actualizaciones de Seguridad Automáticas" \
-  --yes-button "Habilitar (Recomendado)" --no-button "Omitir" \
-  --yesno "Mantener el servidor protegido es fundamental. Al habilitar esta opción, el sistema instalará diariamente, de forma desatendida y segura, los parches de seguridad críticos para tu sistema operativo.
-
-Esta función no requiere intervención humana y ayuda a prevenir vulnerabilidades.
-
-¿Deseas activar las actualizaciones automáticas de seguridad?" \
-    "${r}" \
-    "${c}"; then
+    --backtitle "Asistente de Configuración - PiVPN" \
+    --title "Configurar Actualizaciones Automáticas" \
+    --yes-button "Sí, Habilitar (Recomendado)" \
+    --no-button "No, Omitir" \
+    --yesno "Garantizar la protección continua del servidor es un pilar fundamental de la infraestructura. Al activar esta opción, el sistema operativo aplicará diariamente de forma automatizada, desatendida y segura las correcciones críticas.\n\nEsta función ayuda a prevenir la explotación remota de vulnerabilidades sin requerir mantenimiento humano ni provocar cortes de servicio.\n\n¿Deseas activar las actualizaciones automáticas de seguridad?" \
+    "${r}" "${c}"; then
+    
     UNATTUPG=1
+    echo "::: [INFO] El usuario optó por habilitar las actualizaciones automáticas de seguridad."
   else
+    # Captura del estado de salida para identificar interrupciones abruptas del asistente
+    local exit_status=$?
+    if [[ ${exit_status} -eq 255 ]]; then
+      echo "::: [ADVERTENCIA] Cancelación forzada detectada en el diálogo interactivo (tecla ESC)." >&2
+    fi
     UNATTUPG=0
+    echo "::: [INFO] Se han omitido las actualizaciones automáticas de seguridad por instrucción del usuario."
   fi
 
-  echo "UNATTUPG=${UNATTUPG}" >> "${tempsetupVarsFile}"
+  # ------------------------------------------------------------------------------
+  # PERSISTENCIA TRANSACCIONAL DE CONFIGURACIÓN
+  # ------------------------------------------------------------------------------
+  if ! echo "UNATTUPG=${UNATTUPG}" >> "${tempsetupVarsFile}"; then
+    err "Fallo crítico de E/S: No se pudieron guardar las directivas de seguridad en '${tempsetupVarsFile}'."
+    exit 1
+  fi
+
+  echo "::: [ÉXITO] Configuración del subsistema de actualizaciones desatendidas consolidada correctamente."
 }
 
 confUnattendedUpgrades() {
+  # ==============================================================================
+  #       CONFIGURACIÓN DEL SUBSISTEMA DE ACTUALIZACIONES AUTOMÁTICAS
+  # ==============================================================================
   local PIVPN_DEPS periodic_file
 
+  # ------------------------------------------------------------------------------
+  # RAMAL A: GESTOR DE PAQUETES APT (DEBIAN / UBUNTU / RASPBERRY PI OS)
+  # ------------------------------------------------------------------------------
   if [[ "${PKG_MANAGER}" == 'apt-get' ]]; then
+    echo ":::"
+    echo "::: [INFO] Configurando actualizaciones desatendidas para entornos basados en APT..."
+    
     PIVPN_DEPS=(unattended-upgrades)
     installDependentPackages PIVPN_DEPS[@]
     aptConfDir="/etc/apt/apt.conf.d"
 
-    # El paquete unattended-upgrades de Raspbian descarga la configuración de Debian,
-    # así que copiamos la configuración adecuada
-    # https://github.com/mvo5/unattended-upgrades/blob/master/data/50unattended-upgrades.Raspbian
-    # Añadir las configuraciones restantes para todas las demás distribuciones
-    if [[ "${PLAT}" == "Raspbian" ]]; then
-      ${SUDO} install -m 644 \
+    # El paquete unattended-upgrades de Raspberry Pi OS hereda la configuración de Debian,
+    # por lo que copiamos y consolidamos la plantilla de orígenes apropiada.
+    if [[ "${PLAT}" == "Raspberry" || "${PLAT}" == "Raspbian" ]]; then
+      echo "::: [INFO] Entorno Raspberry Pi OS detectado. Desplegando plantilla de orígenes específicos..."
+      if ! ${SUDO} install -m 644 \
         "${pivpnFilesDir}/files${aptConfDir}/50unattended-upgrades.Raspbian" \
-        "${aptConfDir}/50unattended-upgrades"
+        "${aptConfDir}/50unattended-upgrades"; then
+        err "Fallo crítico de E/S: No se pudo desplegar el archivo de orígenes '50unattended-upgrades.Raspbian'."
+        exit 1
+      fi
     fi
 
+    # Definición del archivo de directivas periódicas según la distribución destino
     if [[ "${PLAT}" == "Ubuntu" ]]; then
       periodic_file="${aptConfDir}/10periodic"
     else
       periodic_file="${aptConfDir}/02periodic"
     fi
 
-    # 50unattended-upgrades en Ubuntu ya debería tener solo la seguridad habilitada
-    # por lo que solo necesitamos configurar el archivo 10periodic
-    {
+    echo "::: [INFO] Escribiendo directivas de automatización periódica en '${periodic_file}'..."
+    
+    # Volcado seguro y transaccional de los intervalos de actualización de APT
+    if ! {
       echo "APT::Periodic::Update-Package-Lists \"1\";"
       echo "APT::Periodic::Download-Upgradeable-Packages \"1\";"
       echo "APT::Periodic::Unattended-Upgrade \"1\";"
@@ -4976,56 +5018,124 @@ confUnattendedUpgrades() {
         echo "APT::Periodic::AutocleanInterval \"7\";"
         echo "APT::Periodic::Verbose \"0\";"
       fi
-    } | ${SUDO} tee "${periodic_file}" > /dev/null
-
-    # Habilitar actualizaciones automáticas a través del repositorio bullseye
-    # al instalar desde el paquete debian
-    if [[ "${VPN}" == "wireguard" ]]; then
-      if [[ -f /etc/apt/sources.list.d/pivpn-bullseye-repo.list ]]; then
-        if ! grep -q "\"o=${PLAT},n=bullseye\";" \
-          "${aptConfDir}/50unattended-upgrades"; then
-          local sed_pattern
-          sed_pattern=" {/a\"o=${PLAT},n=bullseye\";"
-          sed_pattern="${sed_pattern} {/a\"o=${PLAT},n=bullseye\";"
-          ${SUDO} sed -i "${sed_pattern}" "${aptConfDir}/50unattended-upgrades"
-        fi
-      fi
-    fi
-  elif [[ "${PKG_MANAGER}" == 'apk' ]]; then
-    local down_dir
-    ## instalar dependencias
-    # shellcheck disable=SC2086
-    ${SUDO} ${PKG_INSTALL} unzip asciidoctor
-
-    if ! down_dir="$(mktemp -d)"; then
-      err "::: ¡Fallo al crear el directorio de descarga para apk-autoupdate!"
+    } | ${SUDO} tee "${periodic_file}" > /dev/null; then
+      err "Fallo crítico de E/S: No se pudieron consolidar las directivas de automatización en '${periodic_file}'."
       exit 1
     fi
 
-    ## descargar binarios
-    curl -fLo "${down_dir}/master.zip" \
-      https://github.com/jirutka/apk-autoupdate/archive/refs/heads/master.zip
-    unzip -qd "${down_dir}" "${down_dir}/master.zip"
-
-    (
-      cd "${down_dir}/apk-autoupdate-master" || exi
-
-      ## personalizar binarios
-      sed -i -E -e 's/^(prefix\s*:=).*/\1 \/usr/' Makefile
-
-      ## instalar
-      ${SUDO} make install
-
-      if ! command -v apk-autoupdate &> /dev/null; then
-        err "::: ¡Fallo al compilar e instalar apk-autoupdate!"
-        exit
+    # Tratamiento de retrocompatibilidad y actualizaciones automáticas de repositorios externos (WireGuard Bullseye)
+    if [[ "${VPN}" == "wireguard" ]]; then
+      if [[ -f /etc/apt/sources.list.d/pivpn-bullseye-repo.list ]]; then
+        echo "::: [INFO] Repositorio complementario WireGuard detectado. Evaluando directivas de Apt-Pinning..."
+        
+        if ! grep -q "\"o=${PLAT},n=bullseye\";" "${aptConfDir}/50unattended-upgrades"; then
+          echo "::: [INFO] Modificando orígenes permitidos en 50unattended-upgrades para habilitar mantenimiento de WireGuard..."
+          local sed_pattern
+          sed_pattern="/Unattended-Upgrade::Allowed-Origins/a\\        \"o=${PLAT},n=bullseye\";"
+          
+          if ! ${SUDO} sed -i "${sed_pattern}" "${aptConfDir}/50unattended-upgrades"; then
+            err "::: [ADVERTENCIA] No se pudo inyectar el origen Bullseye mediante patrón de inserción. Intentando fallback..."
+            # Alternativa de contingencia segura al final del bloque de orígenes
+            ${SUDO} sed -i "s|};|        \"o=${PLAT},n=bullseye\";\n};|g" "${aptConfDir}/50unattended-upgrades"
+          fi
+        fi
       fi
-    ) || exit 1
+    fi
+    
+    echo "::: [ÉXITO] Subsistema 'unattended-upgrades' para APT aprovisionado correctamente."
 
-    ${SUDO} install -m 0755 \
+  # ------------------------------------------------------------------------------
+  # RAMAL B: GESTOR DE PAQUETES APK (ALPINE LINUX)
+  # ------------------------------------------------------------------------------
+  elif [[ "${PKG_MANAGER}" == 'apk' ]]; then
+    echo ":::"
+    echo "::: [INFO] Configurando actualizaciones desatendidas para entorno Alpine Linux (apk)..."
+    local down_dir
+    
+    echo "::: [INFO] Instalando dependencias necesarias para la compilación del utilitario..."
+    if ! ${SUDO} ${PKG_INSTALL} unzip asciidoctor; then
+      err "Error de dependencias: No se pudieron instalar las herramientas de compilación requeridas."
+      exit 1
+    fi
+
+    echo "::: [INFO] Creando espacio aislado de almacenamiento temporal..."
+    if ! down_dir="$(mktemp -d)"; then
+      err "Fallo crítico de entorno: No se pudo instanciar el directorio temporal para 'apk-autoupdate'."
+      exit 1
+    fi
+
+    echo "::: [INFO] Descargando código fuente de 'apk-autoupdate' desde repositorio remoto..."
+    if ! curl -fLo "${down_dir}/master.zip" https://github.com/jirutka/apk-autoupdate/archive/refs/heads/master.zip; then
+      err "Error de red WAN: La descarga del paquete de código fuente ha fallado."
+      rm -rf "${down_dir}"
+      exit 1
+    fi
+
+    echo "::: [INFO] Extrayendo paquete del logicial descargado..."
+    if ! unzip -qd "${down_dir}" "${down_dir}/master.zip"; then
+      err "Error de integridad: El archivo de código fuente descargado está corrupto o es inválido."
+      rm -rf "${down_dir}"
+      exit 1
+    fi
+
+    echo "::: [INFO] Iniciando subproceso aislado de compilación nativa..."
+    (
+      cd "${down_dir}/apk-autoupdate-master" || {
+        err "Fallo de ruta: Directorio fuente 'apk-autoupdate-master' inalcanzable."
+        exit 1
+      }
+
+      ## Personalizar Makefile con las rutas base del sistema anfitrión (/usr)
+      if ! sed -i -E -e 's/^(prefix\s*:=).*/\1 \/usr/' Makefile; then
+        err "Fallo de preparación: No se pudo reconfigurar el prefijo en el Makefile."
+        exit 1
+      fi
+
+      ## Compilación e instalación definitiva de binarios
+      if ! ${SUDO} make install; then
+        err "Fallo de compilación: El comando 'make install' devolvió un código de error de salida."
+        exit 1
+      fi
+
+      ## Validación de accesibilidad en el PATH del sistema
+      if ! command -v apk-autoupdate &> /dev/null; then
+        err "Fallo de validación post-instalación: El binario 'apk-autoupdate' no responde."
+        exit 1
+      fi
+    )
+    
+    # Captura del estado de finalización del subproceso para contingencias gráficas
+    local subshell_status=$?
+    if [[ ${subshell_status} -ne 0 ]]; then
+      rm -rf "${down_dir}"
+      
+      whiptail \
+        --backtitle "Asistente de Configuración - PiVPN" \
+        --title "Error Crítico de Compilación" \
+        --ok-button "Aceptar y Salir" \
+        --msgbox "No se pudo compilar, construir ni enlazar el componente de actualización automática 'apk-autoupdate' en este entorno Alpine Linux.\n\nPor favor, comprueba las trazas de error reflejadas en la consola para más información." \
+        "${r}" "${c}"
+        
+      exit 1
+    fi
+
+    # Saneamiento y remoción del directorio de descargas temporal
+    rm -rf "${down_dir}"
+
+    echo "::: [INFO] Desplegando archivo de configuración maestro 'personal_autoupdate.conf'..."
+    if ! ${SUDO} install -m 0755 \
       "${pivpnFilesDir}/files/etc/apk/personal_autoupdate.conf" \
-      /etc/apk/personal_autoupdate.conf
-    ${SUDO} apk-autoupdate /etc/apk/personal_autoupdate.conf
+      /etc/apk/personal_autoupdate.conf; then
+      err "Fallo crítico de E/S: No se pudo copiar el archivo de configuración en /etc/apk/."
+      exit 1
+    fi
+    
+    echo "::: [INFO] Ejecutando sincronización e inicialización inicial del demonio apk-autoupdate..."
+    if ! ${SUDO} apk-autoupdate /etc/apk/personal_autoupdate.conf; then
+      echo "::: [ADVERTENCIA] La ejecución preliminar de apk-autoupdate reportó advertencias no letales."
+    fi
+    
+    echo "::: [ÉXITO] Subsistema 'apk-autoupdate' para Alpine Linux aprovisionado correctamente."
   fi
 }
 
