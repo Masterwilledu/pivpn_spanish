@@ -2488,37 +2488,37 @@ askClientDNS() {
   if command -v pihole > /dev/null; then
     if [[ "${usePiholeDNS}" == 'true' ]] \
       || whiptail \
-        --backtitle "Configurar PiVPN" \
-        --title "Pi-hole" --yes-button "Sí" --no-button "No" \
-        --yesno "Hemos detectado una instalación de Pi-hole, \
-¿Quieres usarlo como servidor DNS para la VPN, para que \
-obtengas bloqueo de anuncios sobre la marcha?" "${r}" "${c}"; then
+        --backtitle "Configurador PiVPN" \
+        --title "Integración con Pi-hole" \
+        --yes-button "Sí, configurar" \
+        --no-button "No, gracias" \
+        --yesno "Se ha detectado una instalación activa de Pi-hole. \
+¿Deseas configurarlo como servidor DNS de tu VPN para disfrutar \
+de bloqueo de anuncios en todos tus dispositivos?" "${r}" "${c}"; then
       setupPiholeDNS
       return
     fi
   fi
 
   DNSChoseCmd=(whiptail
-    --backtitle "Configurar PiVPN"
-    --title "Proveedor de DNS"
-    --separate-output
-    --radiolist "Selecciona el Proveedor DNS para tus Clientes VPN \
-(presiona tecla espacio para seleccionar).
-Para usar el tuyo propio, selecciona Custom.
+    ---backtitle "Configurador PiVPN" \
+    --title "Selección de Proveedor DNS" --ok-button "Seleccionar" --cancel-button "Cancelar" \
+    --separate-output \
+    --radiolist "Elige el proveedor DNS que usarán tus clientes VPN. \
+(Usa la barra espaciadora para marcar tu opción).
 
-En caso de que tengas un resolutor DNS local en ejecución (por ej. Pi-hole, AdGuard Home, Unbound) selecciona \
-\"PiVPN-is-local-DNS\" y asegúrate de que esté escuchando en \
-\"${vpnGw}\", permitiendo solicitudes de \
-\"${pivpnNET}/${subnetClass}\"." "${r}" "${c}" 6)
-  DNSChooseOptions=(Quad9 "" on
-    OpenDNS "" off
-    Level3 "" off
-    DNS.WATCH "" off
-    Norton "" off
-    FamilyShield "" off
+Si deseas ingresar IPs personalizadas, selecciona 'Custom'.
+
+NOTA PARA RESOLUTORES LOCALES:
+Si ejecutas un Servidor DNS local (Pi-hole, AdGuard Home, Unbound, etc.), \
+selecciona 'PiVPN-is-local-DNS'. Asegúrate de que escuche en la \
+IP \"${vpnGw}\" y acepte peticiones desde \"${pivpnNET}/${subnetClass}\"." "${r}" "${c}" 6)
+  DNSChooseOptions=(Google "" on
     CloudFlare "" off
-    Google "" off
-	AdGuard "" off
+    OpenDNS "" off
+    Quad9 "" off
+    AdGuard "" off
+    FamilyShield "" off
     PiVPN-is-local-DNS "" off
     Custom "" off)
 
@@ -2527,16 +2527,13 @@ En caso de que tengas un resolutor DNS local en ejecución (por ej. Pi-hole, AdG
     2>&1 > /dev/tty)"; then
     if [[ "${DNSchoices}" != "Custom" ]]; then
       echo "::: Usando servidores ${DNSchoices}."
-      declare -A DNS_MAP=(["Quad9"]="9.9.9.9 149.112.112.112"
-        ["OpenDNS"]="208.67.222.222 208.67.220.220"
-        ["Level3"]="209.244.0.3 209.244.0.4"
-        ["DNS.WATCH"]="84.200.69.80 84.200.70.40"
-        ["Norton"]="199.85.126.10 199.85.127.10"
-        ["FamilyShield"]="208.67.222.123 208.67.220.123"
-        ["CloudFlare"]="1.1.1.1 1.0.0.1"
-        ["Google"]="8.8.8.8 8.8.4.4"
-		["AdGuard"]="94.140.14.14 94.140.15.15"
-        ["PiVPN-is-local-DNS"]="${vpnGw}")
+      declare -A DNS_MAP=(["Google"]="8.8.8.8 8.8.4.4"
+      ["CloudFlare"]="1.1.1.1 1.0.0.1"
+      ["OpenDNS"]="208.67.222.222 208.67.220.220"
+      ["Quad9"]="9.9.9.9 149.112.112.112"
+      ["AdGuard"]="94.140.14.14 94.140.15.15"
+      ["FamilyShield"]="208.67.222.123 208.67.220.123"
+      ["PiVPN-is-local-DNS"]="${vpnGw}")
       pivpnDNS1=$(awk '{print $1}' <<< "${DNS_MAP["${DNSchoices}"]}")
       pivpnDNS2=$(awk '{print $2}' <<< "${DNS_MAP["${DNSchoices}"]}")
     else
