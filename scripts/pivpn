@@ -1,62 +1,131 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# PiVPN: Núcleo y Enrutador Principal de la Interfaz de Línea de Comandos (CLI)
+# Actúa como punto de entrada unificado para la gestión multiprotocolo del servidor.
 
-### Constantes
+export LANG=es_ES.UTF-8
+export LC_ALL=es_ES.UTF-8
+
+# ==============================================================================
+#                 CONFIGURACIÓN DE GEOMETRÍA Y CONSTANTES GLOBALES
+# ==============================================================================
 CHECK_PKG_INSTALLED='dpkg-query -s'
 scriptDir="/opt/pivpn"
 
-### Funciones
+# Cálculo dinámico de dimensiones de pantalla para cuadros interactivos Whiptail
+screen_size="$(stty size 2> /dev/null || echo 24 80)"
+rows="$(echo "${screen_size}" | awk '{print $1}')"
+columns="$(echo "${screen_size}" | awk '{print $2}')"
+
+r=$((rows / 2))
+c=$((columns / 2))
+r=$((r < 20 ? 20 : r))
+c=$((c < 70 ? 70 : c))
+
+# ==============================================================================
+#                            FUNCIONES NÚCLEO
+# ==============================================================================
+
 err() { 
-  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $*" >&2 
+  echo -e "[$(date +'%Y-%m-%dT%H:%M:%S%z')] ::: [ERROR] $*" >&2 
 } 
 
 uninstallServer() {
-  ${SUDO} "${scriptDir}/uninstall.sh"
-  exit "${?}"
+  # Validación gráfica preventiva para evitar ejecuciones accidentales
+  if whiptail --backtitle "Panel de Administración - PiVPN" \
+              --title "Confirmación de Desinstalación" \
+              --yes-button "Sí, continuar" \
+              --no-button "No, cancelar" \
+              --defaultno \
+              --yesno "¡ADVERTENCIA CRÍTICA DE SISTEMA!\n\nEstá a punto de iniciar el proceso de eliminación completa de PiVPN de este servidor.\n\nEsta acción:\n• Eliminará todos los perfiles criptográficos de los clientes.\n• Removerá las interfaces de red virtuales y reglas de firewall.\n• Desinstalará las dependencias asociadas.\n\n¿Está completamente seguro de que desea proceder?" \
+              "${r}" "${c}"; then
+              
+    local target_script="${scriptDir}/uninstall.sh"
+    if [[ -x "${target_script}" ]]; then
+      echo "::: [INFO] Iniciando el módulo de desinstalación controlada..."
+      exec "${SUDO}" "${target_script}"
+    else
+      err "El script de desinstalación no existe o carece de permisos de ejecución: ${target_script}"
+      exit 1
+    fi
+  else
+    echo "::: [INFO] Operación de desinstalación abortada de forma segura por el usuario."
+    exit 0
+  fi
 } 
 
 backup() { 
-  ${SUDO} "${scriptDir}/backup.sh" 
-  exit "${?}"
+  local target_script="${scriptDir}/backup.sh"
+  if [[ -x "${target_script}" ]]; then
+    echo "::: [INFO] Transfiriendo el flujo al gestor de copias de respaldo..."
+    exec "${SUDO}" "${target_script}"
+  else
+    err "El componente de copia de seguridad no se encuentra disponible o está corrupto: ${target_script}"
+    exit 1
+  fi
 } 
 
 showHelp() { 
-  echo "::: Para pasar al comando pivpn para cada protocolo" 
+  echo "::: [INFO] Panel de Administración Avanzado PiVPN" 
   echo ":::" 
-  echo "::: Uso: pivpn wg  <comando> [opción]" 
-  echo "::: Uso: pivpn ovpn <comando> [opción]" 
+  echo "::: Uso y sintaxis de comandos específicos por protocolo:" 
+  echo ":::   pivpn wg  <comando> [opciones]   -> Administrar instancia de WireGuard" 
+  echo ":::   pivpn ovpn <comando> [opciones]  -> Administrar instancia de OpenVPN" 
   echo ":::" 
-  echo ":::  -h,  help             Mostrar este diálogo de ayuda" 
-  echo ":::  -u,  uninstall        ¡Desinstalar pivpn de tu sistema!"
-  echo ":::  -bk, backup           Respaldar configuraciones de VPN y perfiles de usuario" 
+  echo "::: Comandos globales de utilidad del sistema:" 
+  echo ":::   -h,  help                        Mostrar este manual de ayuda en consola" 
+  echo ":::   -u,  uninstall                   Iniciar asistente gráfico de desinstalación"
+  echo ":::   -bk, backup                      Ejecutar respaldo empaquetado de llaves y perfiles" 
+  echo ":::" 
   exit 0 
 } 
 
-### Script 
-# Debe ser root para usar esta herramienta 
+# ==============================================================================
+#                       VALIDACIÓN DE PRIVILEGIOS Y ENTORNO
+# ==============================================================================
+
+# Verificación de ejecución con privilegios elevados (Root / Sudo)
 if [[ "${EUID}" -ne 0 ]]; then 
   if ${CHECK_PKG_INSTALLED} sudo &> /dev/null; then 
     export SUDO="sudo" 
   else 
-    err "::: Por favor, instala sudo o ejecuta esto como root." 
+    echo ":::" >&2
+    err "Privilegios insuficientes para la administración de redes y seguridad."
+    echo "::: [ADVERTENCIA] Por favor, instale el paquete 'sudo' o ejecute este comando directamente como root." >&2 
     exit 1 
   fi
 fi 
 
+# Soporte agnóstico de paquetería (Compatibilidad nativa con Alpine Linux)
 if grep -qsEe "^NAME\=['\"]?Alpine[a-zA-Z ]*['\"]?$" /etc/os-release; then 
   CHECK_PKG_INSTALLED='apk --no-cache info -e' 
 fi 
 
+# Si no se proveen argumentos, se despliega el menú de ayuda por defecto
 if [[ "$#" == 0 ]]; then
   showHelp
 fi 
 
-# Manejar la redirección a funciones específicas según los argumentos 
+# ==============================================================================
+#                 ENRUTADOR CENTRAL DE ARGUMENTOS (CASE ROUTING)
+# ==============================================================================
 case "${1}" in 
   wg) 
-    "${scriptDir}/wireguard/pivpn.sh" "${@:2}" 
+    target_pivpn="${scriptDir}/wireguard/pivpn.sh"
+    if [[ -x "${target_pivpn}" ]]; then
+      exec "${target_pivpn}" "${@:2}" 
+    else
+      err "El submódulo de WireGuard no está instalado o configurado en este sistema."
+      exit 1
+    fi
     ;; 
   ovpn) 
-    "${scriptDir}/openvpn/pivpn.sh" "${@:2}" 
+    target_pivpn="${scriptDir}/openvpn/pivpn.sh"
+    if [[ -x "${target_pivpn}" ]]; then
+      exec "${target_pivpn}" "${@:2}" 
+    else
+      err "El submódulo de OpenVPN no está instalado o configurado en este sistema."
+      exit 1
+    fi
     ;; 
   "-h" | "help")
     showHelp 
@@ -68,6 +137,7 @@ case "${1}" in
     backup 
     ;; 
   *) 
+    echo "::: [ADVERTENCIA] Parámetro de ejecución desconocido o inválido: '${1}'" >&2
     showHelp 
     ;; 
-esac 
+esac
