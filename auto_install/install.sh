@@ -2665,16 +2665,20 @@ askCustomDomain() {
 [AVISO] Esta opción se recomienda solo para usuarios avanzados o entornos corporativos que dispongan de una infraestructura de dominio propia." "${r}" "${c}"; then
     until [[ "${DomainSettingsCorrect}" == 'true' ]]; do
       if pivpnSEARCHDOMAIN="$(whiptail \
-        --inputbox "Introduce el Dominio Personalizado
-Formato: midominio.com" "${r}" "${c}" \
+        --backtitle "Configurador PiVPN" \
+        --title "Dominio Personalizado" --ok-button "Continuar" --cancel-button "Cancelar" \
+        --inputbox "Introduce tu sufijo de dominio personalizado.
+
+Ejemplo: midominio.com" "${r}" "${c}" \
         --title "Dominio Personalizado" \
         3>&1 1>&2 2>&3)"; then
         if validDomain "${pivpnSEARCHDOMAIN}"; then
           if whiptail \
-            --backtitle "Dominio de búsqueda personalizado" \
-            --title "Dominio de búsqueda personalizado" --yes-button "Sí" --no-button "No" \
-            --yesno "¿Son correctas estas configuraciones?
-    Dominio de búsqueda personalizado: ${pivpnSEARCHDOMAIN}" "${r}" "${c}"; then
+            ---backtitle "Configurador PiVPN" \
+        --title "Confirmar Configuración" --yes-button "Confirmar" --no-button "Modificar" \
+        --yesno "¿Es correcto el dominio introducido?
+
+  • Dominio de búsqueda: ${pivpnSEARCHDOMAIN}" "${r}" "${c}"; then
             DomainSettingsCorrect=true
           else
             # Si las configuraciones son incorrectas, el bucle continúa
