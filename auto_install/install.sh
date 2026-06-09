@@ -4750,15 +4750,36 @@ confNetwork() {
 }
 
 confLogging() {
+  # ==============================================================================
+  #          CONFIGURACIÓN DE REGISTROS (LOGGING Y LOGROTATE)
+  # ==============================================================================
+  echo ":::"
+  echo "::: [INFO] Configurando la persistencia y rotación de registros del sistema..."
+
   # Pre-crear directorios de configuración de rsyslog/logrotate si faltan,
-  # para asegurar que los registros se manejen como se espera cuando estos se
-  # instalen en un momento posterior
-  ${SUDO} mkdir -p /etc/{rsyslog,logrotate}.d
+  # para asegurar que los registros se manejen como se espera cuando estos se instalen
+  if ! ${SUDO} mkdir -p /etc/rsyslog.d /etc/logrotate.d; then
+    err "Fallo de entorno: No se pudieron crear los directorios de configuración de rsyslog/logrotate."
+    if [[ "${runUnattended}" != 'true' ]]; then
+      whiptail --backtitle "Asistente de Configuración - PiVPN" \
+               --title "Error de Configuración de Logs" \
+               --ok-button "Salir" \
+               --msgbox "No se pudieron crear los directorios necesarios en /etc para rsyslog o logrotate.\n\nPor favor, verifica los permisos del sistema." "${r}" "${c}"
+    fi
+    exit 1
+  fi
 
-  echo "if \$programname == 'openvpn' then /var/log/openvpn.log
-if \$programname == 'openvpn' then stop" | ${SUDO} tee /etc/rsyslog.d/30-openvpn.conf > /dev/null
+  # Aplicar configuración específica únicamente si el motor seleccionado es OpenVPN
+  if [[ "${VPN}" == "openvpn" ]]; then
+    echo "::: [INFO] Escribiendo directivas de enrutamiento rsyslog para OpenVPN..."
+    if ! echo "if \$programname == 'openvpn' then /var/log/openvpn.log
+if \$programname == 'openvpn' then stop" | ${SUDO} tee /etc/rsyslog.d/30-openvpn.conf > /dev/null; then
+      err "Fallo de E/S: No se pudo escribir la regla de rsyslog en /etc/rsyslog.d/30-openvpn.conf."
+      exit 1
+    fi
 
-  echo "/var/log/openvpn.log
+    echo "::: [INFO] Escribiendo directivas de rotación logrotate para OpenVPN..."
+    if ! echo "/var/log/openvpn.log
 {
     rotate 4
     weekly
@@ -4770,41 +4791,103 @@ if \$programname == 'openvpn' then stop" | ${SUDO} tee /etc/rsyslog.d/30-openvpn
     postrotate
         invoke-rc.d rsyslog rotate >/dev/null 2>&1 || true
     endscript
-}" | ${SUDO} tee /etc/logrotate.d/openvpn > /dev/null
+}" | ${SUDO} tee /etc/logrotate.d/openvpn > /dev/null; then
+      err "Fallo de E/S: No se pudo escribir la regla de logrotate en /etc/logrotate.d/openvpn."
+      exit 1
+    fi
+  fi
 
-  # Reiniciar el servicio de registro
-  ${SUDO} rc-service -is rsyslog restart
-  ${SUDO} rc-service -iN rsyslog start
+  # Reiniciar el servicio de registro adaptado a la plataforma detectada
+  echo "::: [INFO] Sincronizando el demonio de registros del sistema..."
+  case "${PLAT}" in
+    Debian | Raspbian | Raspberry | Ubuntu)
+      if systemctl is-active --quiet rsyslog 2>/dev/null || systemctl is-enabled --quiet rsyslog 2>/dev/null; then
+        if ! ${SUDO} systemctl restart rsyslog.service; then
+          echo "::: [ADVERTENCIA] No se pudo reiniciar el servicio rsyslog de forma automática."
+        fi
+      fi
+      ;;
+    Alpine)
+      # Uso controlado de utilidades de OpenRC para Alpine Linux
+      ${SUDO} rc-service -is rsyslog restart &>/dev/null || true
+      ${SUDO} rc-service -iN rsyslog start &>/dev/null || true
+      ;;
+  esac
+
+  echo "::: [ÉXITO] Subsistema de logs y rotación configurado correctamente."
 }
 
 restartServices() {
-  # Iniciar servicios
-  echo "::: Reiniciando servicios..."
+  # ==============================================================================
+  #             REINICIO Y HABILITACIÓN DE SERVICIOS VPN
+  # ==============================================================================
+  echo ":::"
+  echo "::: [INFO] Inicializando el aprovisionamiento y arranque de servicios VPN (${VPN^^})..."
 
   case "${PLAT}" in
-    Debian | Raspbian | Ubuntu)
+    Debian | Raspbian | Raspberry | Ubuntu)
       if [[ "${VPN}" == "openvpn" ]]; then
+        echo "::: [INFO] Asegurando persistencia en el arranque: openvpn.service..."
         ${SUDO} systemctl enable openvpn.service &> /dev/null
-        ${SUDO} systemctl restart openvpn.service
+        
+        echo "::: [INFO] Lanzando comando de reinicio del demonio OpenVPN..."
+        if ! ${SUDO} systemctl restart openvpn.service; then
+          err "Fallo crítico: El sistema no pudo levantar el servicio OpenVPN correctamente."
+          if [[ "${runUnattended}" != 'true' ]]; then
+            whiptail --backtitle "Asistente de Configuración - PiVPN" \
+                     --title "Fallo de Servicio OpenVPN" \
+                     --ok-button "Revisar" \
+                     --msgbox "El instalador no pudo iniciar el servicio de OpenVPN de forma nativa.\n\nTe sugerimos comprobar el estado detallado ejecutando:\nsudo systemctl status openvpn.service" "${r}" "${c}"
+          fi
+          exit 1
+        fi
       elif [[ "${VPN}" == "wireguard" ]]; then
+        echo "::: [INFO] Asegurando persistencia en el arranque: wg-quick@wg0.service..."
         ${SUDO} systemctl enable wg-quick@wg0.service &> /dev/null
-        ${SUDO} systemctl restart wg-quick@wg0.service
+        
+        echo "::: [INFO] Lanzando comando de reinicio de la interfaz WireGuard..."
+        if ! ${SUDO} systemctl restart wg-quick@wg0.service; then
+          err "Fallo crítico: El sistema no pudo inicializar la interfaz WireGuard (wg-quick@wg0)."
+          if [[ "${runUnattended}" != 'true' ]]; then
+            whiptail --backtitle "Asistente de Configuración - PiVPN" \
+                     --title "Fallo de Servicio WireGuard" \
+                     --ok-button "Revisar" \
+                     --msgbox "No se pudo levantar la interfaz criptográfica de WireGuard (wg0).\n\nPor favor, revisa la salida detallada mediante el comando:\nsudo systemctl status wg-quick@wg0.service" "${r}" "${c}"
+          fi
+          exit 1
+        fi
       fi
-
       ;;
+
     Alpine)
       if [[ "${VPN}" == 'openvpn' ]]; then
+        echo "::: [INFO] Registrando OpenVPN en el nivel de ejecución por defecto (OpenRC)..."
         ${SUDO} rc-update add openvpn default &> /dev/null
-        ${SUDO} rc-service -s openvpn restart
-        ${SUDO} rc-service -N openvpn start
+        
+        echo "::: [INFO] Reiniciando el manejador openvpn de OpenRC..."
+        if ! ${SUDO} rc-service -s openvpn restart || ! ${SUDO} rc-service -N openvpn start; then
+          err "Fallo crítico de inicialización: No se pudo arrancar el servicio openvpn de OpenRC."
+          exit 1
+        fi
       elif [[ "${VPN}" == 'wireguard' ]]; then
+        echo "::: [INFO] Registrando wg-quick en el nivel de ejecución por defecto (OpenRC)..."
         ${SUDO} rc-update add wg-quick default &> /dev/null
-        ${SUDO} rc-service -s wg-quick restart
-        ${SUDO} rc-service -N wg-quick start
+        
+        echo "::: [INFO] Reiniciando el manejador wg-quick de OpenRC..."
+        if ! ${SUDO} rc-service -s wg-quick restart || ! ${SUDO} rc-service -N wg-quick start; then
+          err "Fallo crítico de inicialización: No se pudo arrancar la interfaz wg-quick de OpenRC."
+          exit 1
+        fi
       fi
-
+      ;;
+      
+    *)
+      err "Error de control: La plataforma actual '${PLAT}' no está mapeada en el módulo de servicios."
+      exit 1
       ;;
   esac
+
+  echo "::: [ÉXITO] Los servicios asociados a ${VPN^^} se han desplegado y arrancado correctamente."
 }
 
 askUnattendedUpgrades() {
