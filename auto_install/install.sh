@@ -816,30 +816,57 @@ verifyFreeDiskSpace() {
 }
 
 updatePackageCache() {
-  # actualizar listas de paquetes
-  echo ":::"
-  echo -e "::: Actualizando la caché de repositorios locales (${UPDATE_PKG_CACHE})..."
-  # shellcheck disable=SC2086
-  ${SUDO} ${UPDATE_PKG_CACHE} &> /dev/null &
-  spinner "$!"
-  echo " ¡hecho!"
+  # TRAZABILIDAD: Registro inicial homogeneizado con el sistema de trazas global
+  echo "::: [INFO] Sincronizando e indexando la caché de repositorios locales..."
+  
+  local cache_pid
+  
+  # ROBUSTEZ: Detección dinámica del tipo de variable (Arreglo vs. Cadena)
+  # Previene que en Debian/Ubuntu solo se ejecute el primer elemento de la matriz (apt-get)
+  if [[ "$(declare -p UPDATE_PKG_CACHE 2>/dev/null)" =~ "declare -a" ]]; then
+    # shellcheck disable=SC2086
+    ${SUDO} "${UPDATE_PKG_CACHE[@]}" > /dev/null 2>&1 &
+  else
+    # shellcheck disable=SC2086
+    ${SUDO} ${UPDATE_PKG_CACHE} > /dev/null 2>&1 &
+  fi
+  cache_pid=$!
+  
+  # Delegación del control visual al indicador de carga síncrono
+  spinner "${cache_pid}"
+  
+  # ROBUSTEZ: Captura y evaluación del código de estado real del proceso en segundo plano
+  wait "${cache_pid}"
+  if [[ $? -eq 0 ]]; then
+    echo "::: [ÉXITO] Caché de paquetes locales actualizada correctamente."
+  else
+    # No interrumpimos el flujo crítico, pero dejamos constancia clara del incidente en consola y logs
+    echo "::: [ADVERTENCIA] No se pudo actualizar la caché de repositorios de forma óptima."
+    echo ":::               El asistente continuará intentando resolver las dependencias de todos modos."
+  fi
 }
 
 notifyPackageUpdatesAvailable() {
-  # Informar al usuario si tiene paquetes desactualizados en su sistema y
-  # aconsejarle que ejecute una actualización de paquetes lo antes posible.
-  echo ":::"
-  echo -n "::: Verificando actualizaciones disponibles mediante ${PKG_MANAGER}..."
-  updatesToInstall="$(eval "${PKG_COUNT}")"
-  echo " ¡hecho!"
-  echo ":::"
+  # TRAZABILIDAD: Auditoría visual estructurada del estado de actualización del sistema operativo anfitrión
+  echo "::: [INFO] Consultando la disponibilidad de actualizaciones de software pendientes..."
+  
+  local updatesToInstall
+  # Redirección segura de stderr para evitar rupturas visuales si el gestor está bloqueado temporalmente
+  updatesToInstall="$(eval "${PKG_COUNT}" 2>/dev/null)"
+  
+  # SANITIZACIÓN: Validar mediante expresión regular si la salida es un entero matemático puro
+  if [[ ! "${updatesToInstall}" =~ ^[0-9]+$ ]]; then
+    echo "::: [ADVERTENCIA] No se pudo determinar con precisión el volumen de actualizaciones pendientes."
+    return
+  fi
 
+  # EVALUACIÓN DE ENTORNO: Enrutamiento de mensajes formateados según la densidad de parches requeridos
   if [[ "${updatesToInstall}" -eq 0 ]]; then
-    echo "::: El sistema está al día. Continuando con el despliegue..."
+    echo "::: [INFO] El sistema operativo base se encuentra totalmente al día. Continuando..."
   else
-    echo "::: ¡Hay ${updatesToInstall} actualizaciones disponibles para tu sistema!"
-    echo "::: ¡Te recomendamos que actualices tu Sistema Operativo después de instalar PiVPN! "
-    echo ":::"
+    echo "::: [ADVERTENCIA] Se han detectado ${updatesToInstall} actualizaciones de paquetes disponibles en este sistema."
+    echo "::: [RECOMENDACIÓN] Para preservar la seguridad y estabilidad de la red, se aconseja encarecidamente"
+    echo ":::                 aplicar los parches pendientes del sistema operativo una vez concluido este despliegue."
   fi
 }
 
