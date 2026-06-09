@@ -1,147 +1,174 @@
-#!/bin/bash
-#shellcheck disable=SC2317
-### Actualiza los scripts de pivpn (No PiVPN)
-# Por Realizar: Eliminar esta sección cuando la funcionalidad de actualización se vuelva a habilitar
-###
+#!/usr/bin/env bash
+# PiVPN: Script de Actualización de Componentes y Lógica Interna
+# Sincroniza los entornos de ejecución locales con las ramas de desarrollo de GitHub.
+
+export LANG=es_ES.UTF-8
+export LC_ALL=es_ES.UTF-8
+
+# ==============================================================================
+# CONTROL DE DESACTIVACIÓN TEMPORAL (CONMUTADOR DE FUNCIONALIDAD)
+# ==============================================================================
+# Cambiar a 'false' para activar por completo la ejecución del actualizador.
+DISABLE_UPDATE=true
+
 err() {
-  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $*" >&2
+  echo -e "[$(date +'%Y-%m-%dT%H:%M:%S%z')] ::: [ERROR] $*" >&2
 }
 
-err "::: La funcionalidad de actualización de los scripts de PiVPN está temporalmente deshabilitada"
-err "::: Para mantener la VPN (y el sistema) actualizados, usa:"
-err "        apt update; apt upgrade"
-exit 0
-### FIN DE LA SECCIÓN ###
+if [[ "${DISABLE_UPDATE}" == "true" ]]; then
+  err "La funcionalidad nativa de actualización automatizada está temporalmente deshabilitada."
+  err "Para mantener el sistema operativo y sus dependencias al día, ejecute manualmente:"
+  echo -e "    \e[1msudo apt update && sudo apt upgrade\e[0m"
+  exit 0
+fi
+# ==============================================================================
 
-### Constantes
+# Privilegios de administrador requeridos para operaciones en /opt y /etc
+if [[ "${EUID}" -ne 0 ]]; then
+  err "Este script requiere privilegios de acceso raíz (root). Intente usar 'sudo'."
+  exit 1
+fi
+
+# Validación preventiva del binario Git en el sistema anfitrión
+if ! command -v git &> /dev/null; then
+  err "El binario 'git' es indispensable y no está disponible en el PATH del sistema."
+  exit 1
+fi
+
+# ==============================================================================
+#                 CONFIGURACIÓN DE GEOMETRÍA Y CONSTANTES GLOBALES
+# ==============================================================================
 pivpnrepo="https://github.com/wfhgdev/pivpn_spanish.git"
 pivpnlocalpath="/etc/.pivpn"
-pivpnscripts="/opt/pivpn/"
-bashcompletiondir="/etc/bash_completion.d/"
+pivpnscripts="/opt/pivpn"
+bashcompletiondir="/etc/bash_completion.d"
 
-# Encuentra las filas y columnas. Por defecto será 80x24 si no se pueden detectar.
 screen_size="$(stty size 2> /dev/null || echo 24 80)"
 rows="$(echo "${screen_size}" | awk '{print $1}')"
 columns="$(echo "${screen_size}" | awk '{print $2}')"
 
-# Divide por dos para que los cuadros de diálogo ocupen la mitad de la pantalla, lo cual se ve bien.
+# Proporciones dinámicas para ventanas TUI (Whiptail)
 r=$((rows / 2))
 c=$((columns / 2))
-# A menos que la pantalla sea minúscula
 r=$((r < 20 ? 20 : r))
 c=$((c < 70 ? 70 : c))
 
+# Asistente gráfico interactivo de selección de protocolo
 chooseVPNCmd=(whiptail
-  --backtitle "Configuración de PiVPN"
-  --title "Modo de instalación"
+  --backtitle "Ecosistema de Gestión PiVPN"
+  --title "Actualización de Componentes"
+  --ok-button "Seleccionar"
+  --cancel-button "Salir"
   --separate-output
-  --radiolist "Elige una VPN para actualizar (presiona espacio para seleccionar):"
+  --radiolist "Seleccione el protocolo VPN cuyos scripts desea sincronizar:\n(Presione [Espacio] para marcar, [Intro] para continuar)"
   "${r}" "${c}" 2)
-VPNChooseOptions=(WireGuard "" on
-  OpenVPN "" off)
+
+VPNChooseOptions=(WireGuard "Actualizar scripts del entorno WireGuard" on
+                  OpenVPN "Actualizar scripts del entorno OpenVPN" off)
 
 if VPN="$("${chooseVPNCmd[@]}" "${VPNChooseOptions[@]}" 2>&1 > /dev/tty)"; then
-  echo "::: Usando VPN: ${VPN}"
   VPN="${VPN,,}"
+  echo "::: [INFO] Instancia seleccionada para auditoría: ${VPN}"
 else
-  err "::: Cancelar seleccionado, saliendo...."
-  exit 1
+  echo "::: [INFO] Operación cancelada por el usuario. Saliendo..."
+  exit 0
 fi
 
 setupVars="/etc/pivpn/${VPN}/setupVars.conf"
 
-# shellcheck disable=SC1090
-source "${setupVars}"
-
-### Funciones
-# TODO: Descomentar esta función cuando la funcionalidad de actualización
-# se vuelva a habilitar
-#err() {
-#  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $*" >&2
-#}
-
-scriptusage() {
-  echo "::: Actualiza los scripts de PiVPN"
-  echo ":::"
-  echo "::: Uso: pivpn <-up|update> [-t|--test]"
-  echo ":::"
-  echo "::: Comandos:"
-  echo ":::  [ninguno]           Actualiza desde la rama master"
-  echo ":::  -t, test            Actualiza desde la rama test"
-  echo ":::  -h, help            Muestra este diálogo de uso"
-}
-
-updatepivpnscripts() {
-  local branch
-  branch="${1}"
-  ## No sabemos qué tipo de cambios han hecho los usuarios.
-  ## Vamos a eliminar primero el directorio /etc/.pivpn y luego a clonarlo de nuevo
-  echo -n "Procediendo a actualizar los scripts de PiVPN"
-
-  if [[ -z "${branch}" ]]; then
-    echo " desde la rama ${branch}"
-  else
-    echo
-  fi
-
-  if [[ -d "${pivpnlocalpath}" ]] \
-    && [[ -n "${pivpnlocalpath}" ]]; then
-    rm -rf "${pivpnlocalpath}/../.pivpn"
-  fi
-
-  cloneandupdate "${branch}"
-  echo -n "Los scripts de PiVPN se han actualizado"
-
-  if [[ -z "${branch}" ]]; then
-    echo " desde la rama ${branch}"
-  else
-    echo
-  fi
-}
-
-## Clonar y copiar los scripts de pivpn a /opt/pivpn
-cloneandupdate() {
-  local branch
-  branch="${1}"
-  git clone "${pivpnrepo}" "${pivpnlocalpath}"
-
-  if [[ -z "${branch}" ]]; then
-    git -C "${pivpnlocalpath}" checkout "${branch}"
-    git -C "${pivpnlocalpath}" pull origin "${branch}"
-  fi
-
-  cp "${pivpnlocalpath}"/scripts/*.sh "${pivpnscripts}"
-  cp "${pivpnlocalpath}"/scripts/"${VPN}"/*.sh "${pivpnscripts}"
-  cp "${pivpnlocalpath}"/scripts/"${VPN}"/bash-completion "${bashcompletiondir}"
-
-  if [[ -z "${branch}" ]]; then
-    git -C "${pivpnlocalpath}" checkout master
-  fi
-}
-
-## SCRIPT
+# Validación estructural del archivo de configuración antes de su invocación (source)
 if [[ ! -f "${setupVars}" ]]; then
-  err "::: ¡Falta el archivo de variables de configuración!"
+  err "No se localizó el archivo de configuración indispensable en: ${setupVars}"
   exit 1
 fi
 
-if [[ "$#" -eq 0 ]]; then
-  updatepivpnscripts
-else
-  while true; do
-    case "${1}" in
-      -t | test)
-        updatepivpnscripts 'test'
-        exit 0
-        ;;
-      -h | help)
-        scriptusage
-        exit 0
-        ;;
-      *)
-        updatepivpnscripts
-        exit 0
-        ;;
-    esac
-  done
-fi
+# shellcheck disable=SC1090
+source "${setupVars}"
+
+# ==============================================================================
+#                            LOGICA DE FUNCIONES
+# ==============================================================================
+
+scriptusage() {
+  echo "::: [INFO] Manual de Uso - Módulo de Actualización PiVPN"
+  echo ":::"
+  echo "::: Comando: pivpn <-up|update> [Opciones]"
+  echo ":::"
+  echo "::: Opciones válidas:"
+  echo ":::   [Ninguna]       Sincroniza el entorno desde la rama estable 'master'."
+  echo ":::   -t, test        Sincroniza el entorno desde la rama de desarrollo 'test'."
+  echo ":::   -h, help        Despliega este manual de ayuda en la consola."
+}
+
+cloneandupdate() {
+  local branch="${1:-master}"
+
+  echo "::: [INFO] Sincronizando repositorio remoto con la caché local..."
+  if ! git clone "${pivpnrepo}" "${pivpnlocalpath}" &> /dev/null; then
+    err "Fallo crítico al intentar clonar el repositorio: ${pivpnrepo}"
+    exit 1
+  fi
+
+  # Cambiar de rama únicamente si difiere de la rama master por defecto
+  if [[ "${branch}" != "master" ]]; then
+    echo "::: [INFO] Cambiando el espacio de trabajo local a la rama de desarrollo: '${branch}'..."
+    if ! git -C "${pivpnlocalpath}" checkout "${branch}" &> /dev/null; then
+      err "La rama especificada '${branch}' no está disponible en el servidor remoto."
+      rm -rf "${pivpnlocalpath}"
+      exit 1
+    fi
+    git -C "${pivpnlocalpath}" pull origin "${branch}" &> /dev/null
+  fi
+
+  echo "::: [INFO] Desplegando nuevos ejecutables en los directorios del sistema..."
+  mkdir -p "${pivpnscripts}" "${bashcompletiondir}"
+
+  # Copia segura protegiendo comodines en caso de directorios vacíos
+  cp "${pivpnlocalpath}"/scripts/*.sh "${pivpnscripts}/" 2>/dev/null || true
+  cp "${pivpnlocalpath}"/scripts/${VPN}/*.sh "${pivpnscripts}/" 2>/dev/null || true
+  cp "${pivpnlocalpath}"/scripts/${VPN}/bash-completion "${bashcompletiondir}/pivpn" 2>/dev/null || true
+
+  # Dejar el repositorio local limpio apuntando a master si se trabajó en otra rama
+  if [[ "${branch}" != "master" ]]; then
+    git -C "${pivpnlocalpath}" checkout master &> /dev/null
+  fi
+}
+
+updatepivpnscripts() {
+  local target_branch="${1:-master}"
+  echo "::: [INFO] Iniciando secuencia de actualización desde la rama: '${target_branch}'"
+
+  # Salvaguarda estructural para mitigar riesgos de borrado accidental catastrófico
+  if [[ -d "${pivpnlocalpath}" ]]; then
+    if [[ "${pivpnlocalpath}" != "/" && "${pivpnlocalpath}" != "/etc" ]]; then
+      echo "::: [INFO] Limpiando espacio temporal previo en ${pivpnlocalpath}..."
+      rm -rf "${pivpnlocalpath}"
+    fi
+  fi
+
+  cloneandupdate "${target_branch}"
+  echo "::: [ÉXITO] Todos los scripts se han actualizado correctamente desde la rama '${target_branch}'."
+}
+
+# ==============================================================================
+#                      PROCESAMIENTO DE ARGUMENTOS CLI
+# ==============================================================================
+
+case "${1}" in
+  -t | test)
+    updatepivpnscripts "test"
+    ;;
+  -h | help)
+    scriptusage
+    ;;
+  "")
+    updatepivpnscripts "master"
+    ;;
+  *)
+    echo "::: [ADVERTENCIA] Opción no reconocida: '${1}'."
+    scriptusage
+    exit 1
+    ;;
+esac
+
+exit 0
