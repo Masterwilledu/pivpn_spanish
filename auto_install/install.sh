@@ -8,7 +8,7 @@ export LC_ALL=es_ES.UTF-8
 #                 CONFIGURACIÓN DE RUTAS Y VARIABLES GLOBALES
 # ==============================================================================
 
-pivpnGitUrl="https://github.com/pivpn/pivpn.git"
+pivpnGitUrl="https://github.com/wfhgdev/pivpn_spanish.git"
 
 # Para desarrollo: Descomentar y asignar una rama específica si se desea probar código en pruebas
 # pivpnGitBranch="custombranchtocheckout"
