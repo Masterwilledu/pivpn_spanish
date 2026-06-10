@@ -119,31 +119,96 @@ if [ "${VPN}" = "openvpn" ]; then
 
 elif [ "${VPN}" = "wireguard" ]; then
     log_info "Entorno detectado: WireGuard. Extrayendo topología de pares (Peers)..."
-    
+
     WG_CONF="/etc/wireguard/wg0.conf"
+    CLIENTS_TXT="/etc/wireguard/configs/clients.txt"
+
+    # Validar existencia Y permisos de lectura (el directorio usa chmod 700 en install.sh)
     if [ ! -f "${WG_CONF}" ]; then
         log_err "No se encontró el archivo de configuración del dispositivo de red: ${WG_CONF}"
         exit 1
     fi
 
-    header=$(printf "%-28s %-20s\n" "IDENTIFICADOR (PEER)" "ESTADO DEL PERFIL")
+    if [ ! -r "${WG_CONF}" ]; then
+        log_err "Sin permisos de lectura sobre: ${WG_CONF}. Verifica que el script se ejecuta como root."
+        exit 1
+    fi
+
+    header=$(printf "%-28s %-20s %-18s\n" "IDENTIFICADOR (PEER)" "IP ASIGNADA" "ESTADO DEL PERFIL")
     divider="------------------------------------------------------------------------"
 
-    # Extracción automatizada basada en marcas de comentarios persistentes generadas por PiVPN
-    while read -r client_line; do
-        client_name=$(echo "$client_line" | awk '{print $3}')
-        if [ -n "${client_name}" ]; then
-            state_str=$(printf "${GREEN}%-20s${NC}" "Habilitado")
-            state_plain=$(printf "%-20s" "Habilitado")
-            
-            OUTPUT_BUFFER_COLOR="${OUTPUT_BUFFER_COLOR}$(printf "%-28s %s\n" "${client_name}" "${state_str}")\n"
-            OUTPUT_BUFFER_PLAIN="${OUTPUT_BUFFER_PLAIN}$(printf "%-28s %s\n" "${client_name}" "${state_plain}")\n"
+    # Cruce entre marcadores ### Client y su bloque [Peer] inmediato para extraer IP asignada.
+    # Se usa una máquina de estados simple en lugar de múltiples greps/pipes al archivo.
+    in_peer_block=false
+    current_client=""
+    current_ip=""
+
+    while IFS= read -r line || [ -n "${line}" ]; do
+
+        # Detectar marcador de comentario generado por PiVPN: "### Client NombreCliente"
+        if [[ "${line}" =~ ^###[[:space:]]Client[[:space:]](.+)$ ]]; then
+            # Guardar nombre: expansión de parámetros Bash pura, sin subprocesos awk/echo
+            current_client="${BASH_REMATCH[1]}"
+            current_ip=""
+            in_peer_block=true
+            continue
         fi
-    done < <(grep -E '^### Client' "${WG_CONF}")
-else
-    log_err "El parámetro del protocolo ('${VPN}') no está soportado o carece de definición válida."
-    exit 1
-fi
+
+        # Dentro del bloque [Peer] activo, capturar la primera AllowedIPs del peer
+        if [ "${in_peer_block}" = "true" ]; then
+            # Detectar inicio de un nuevo bloque de sección que NO sea el peer actual
+            if [[ "${line}" =~ ^\[.*\]$ && "${line}" != "[Peer]" ]]; then
+                in_peer_block=false
+                current_client=""
+                current_ip=""
+                continue
+            fi
+
+            # Extraer la IP asignada desde AllowedIPs (primer CIDR host /32 o /128)
+            if [[ "${line}" =~ ^AllowedIPs[[:space:]]*=[[:space:]]*([^,[:space:]]+) ]]; then
+                current_ip="${BASH_REMATCH[1]}"
+            fi
+        fi
+
+        # Línea en blanco o separador: emitir el peer acumulado si está completo
+        if [ "${in_peer_block}" = "true" ] && [ -z "${line}" ] && [ -n "${current_client}" ]; then
+            _emit_wg_peer "${current_client}" "${current_ip:-N/A}"
+            in_peer_block=false
+            current_client=""
+            current_ip=""
+        fi
+
+    done < "${WG_CONF}"
+
+    # Emitir el último peer si el archivo no termina con línea en blanco
+    if [ "${in_peer_block}" = "true" ] && [ -n "${current_client}" ]; then
+        _emit_wg_peer "${current_client}" "${current_ip:-N/A}"
+    fi
+#=====================================================================================
+# Función auxiliar para formatear la salida de cada peer de WireGuard
+# Función auxiliar: compone y acumula la línea formateada de un peer WireGuard
+# Uso interno exclusivo del bloque WireGuard de listCONF / makeCONF
+#=====================================================================================
+_emit_wg_peer() {
+    local peer_name="$1"
+    local peer_ip="$2"
+
+    # Verificación cruzada opcional con clients.txt para confirmar registro canónico
+    local state_str state_plain
+    if [ -f "${CLIENTS_TXT}" ] && grep -qF "${peer_name}" "${CLIENTS_TXT}" 2>/dev/null; then
+        state_str=$(printf "${GREEN}%-20s${NC}" "Registrado")
+        state_plain=$(printf "%-20s" "Registrado")
+    else
+        # Peer presente en wg0.conf pero ausente en el índice → posible inconsistencia
+        state_str=$(printf "${YELLOW}%-20s${NC}" "Sin índice")
+        state_plain=$(printf "%-20s" "Sin índice")
+        log_warn "Peer '${peer_name}' encontrado en wg0.conf pero no en clients.txt"
+    fi
+
+    OUTPUT_BUFFER_COLOR="${OUTPUT_BUFFER_COLOR}$(printf "%-28s %-18s %s\n" "${peer_name}" "${peer_ip}" "${state_str}")\n"
+    OUTPUT_BUFFER_PLAIN="${OUTPUT_BUFFER_PLAIN}$(printf "%-28s %-18s %s\n" "${peer_name}" "${peer_ip}" "${state_plain}")\n"
+}
+
 
 # ==============================================================================
 #                        PRESENTACIÓN Y SALIDA DE DATOS
