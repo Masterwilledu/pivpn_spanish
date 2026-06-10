@@ -957,16 +957,15 @@ preconfigurePackages() {
     fi
   fi
 
-  # EVALUACIÓN MATRIZ WIREGUARD: Validación extendida multi-distribución (Incluye soporte arm64 moderno)
+  # EVALUACIÓN MATRIZ WIREGUARD: Validación extendida multi-distribución (Soporte nativo para Ubuntu 20.04 hasta 26.04+)
   if [[ "${WIREGUARD_BUILTIN}" -eq 1 && -n "${AVAILABLE_WIREGUARD}" ]] \
-    || [[ "${WIREGUARD_BUILTIN}" -eq 1 && ("${PLAT}" == 'Debian' || "${PLAT}" == 'Raspbian' || "${PLAT}" == 'Raspberry') ]] \
+    || [[ "${WIREGUARD_BUILTIN}" -eq 1 && ("${PLAT}" == 'Debian' || "${PLAT}" == 'Raspbian' || "${PLAT}" == 'Raspberry' || "${PLAT}" == 'Ubuntu') ]] \
     || [[ "${PLAT}" == 'Raspbian' || "${PLAT}" == 'Raspberry' ]] \
     || [[ "${PLAT}" == 'Alpine' && ! -f /.dockerenv && "$(uname -mrs)" =~ ^Linux\ +[0-9\.\-]+\-((lts)|(virt))\ +.*$ ]] \
     || [[ "${PLAT}" == 'Alpine' && -f /.dockerenv ]] \
     || [[ "${PLAT}" == 'Alpine' && -n "${AVAILABLE_WIREGUARD}" ]] \
     || [[ "${PLAT}" == 'Debian' && "${DPKG_ARCH}" == 'amd64' ]] \
-    || [[ "${PLAT}" == 'Ubuntu' && "${DPKG_ARCH}" == 'amd64' && -n "${AVAILABLE_WIREGUARD}" ]] \
-    || [[ "${PLAT}" == 'Ubuntu' && "${DPKG_ARCH}" == 'arm64' && "${OSCN}" == 'focal' && -n "${AVAILABLE_WIREGUARD}" ]]; then
+    || [[ "${PLAT}" == 'Ubuntu' && ("${DPKG_ARCH}" == 'amd64' || "${DPKG_ARCH}" == 'arm64') ]]; then
     WIREGUARD_SUPPORT=1
   fi
 
