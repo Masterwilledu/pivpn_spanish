@@ -499,9 +499,6 @@ askAboutExistingInstall() {
   echo "::: [INFO] Iniciando cuadro de diálogo interactivo para resolver colisión de instalación..."
 
   # ÁMBITO SEGURO: Declaración local de etiquetas del menú con terminología técnica homologada
-  local opt1a="Actualizar"
-  local opt1b="Actualizar scripts y componentes internos de PiVPN"
-
   local opt2a="Reparar"
   local opt2b="Corrige archivos corruptos manteniendo configuración"
 
@@ -509,7 +506,7 @@ askAboutExistingInstall() {
   local opt3b="Reinstalar desde cero o modificar protocolo VPN"
 
   # INTERFAZ DE USUARIO: Menú adaptativo estructurado con información detallada del entorno detectado
-UpdateCmd="$(whiptail \
+  UpdateCmd="$(whiptail \
     --backtitle "Asistente de Configuración PiVPN" \
     --title "¡Instalación Existente Detectada!" \
     --ok-button "Seleccionar" \
@@ -519,8 +516,7 @@ UpdateCmd="$(whiptail \
 Archivo de variables localizado:
 • ${1}
 
-Por favor, selecciona la acción que deseas realizar para continuar:" "${r}" "${c}" 3 \
-    "${opt1a}" "${opt1b}" \
+Por favor, selecciona la acción que deseas realizar para continuar:" "${r}" "${c}" 2 \
     "${opt2a}" "${opt2b}" \
     "${opt3a}" "${opt3b}" \
     3>&2 2>&1 1>&3)" \
