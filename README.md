@@ -1,5 +1,5 @@
-![PiVPN en Español](pivpnSpanishbanner.png)
-# PiVPN Spanish (por William H.)
+![PiVPN Remaster en Español](pivpnSpanishbanner.png)
+# PiVPN Remaster (por William H.)
 
 Este proyecto es un **fork del repositorio original de PiVPN**. Actualmente, el proyecto oficial [PiVPN](https://pivpn.io) no está recibiendo mantenimiento activo, por lo que este fork surge con el objetivo de preservar su funcionalidad, corregir errores y mejorar la experiencia de usuario para la comunidad hispanohablante.
 
